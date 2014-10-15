@@ -17,4 +17,4 @@ ENDMACRO()
 file(GLOB_RECURSE INCS "*.h")
 file(GLOB_RECURSE CPPS "*.cpp")
 
-add_executable(gwTGATest WIN32 ${CPPS} ${INCS})
+add_executable(gwTGATest ${CPPS} ${INCS})
