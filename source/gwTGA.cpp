@@ -4,7 +4,7 @@
 namespace gw {          
 	namespace tga {
 
-	
+
 		TGAImage LoadTgaFromFile(char* fileName) {
 
 			std::ifstream fileStream;
@@ -12,14 +12,14 @@ namespace gw {
 
 			// TODO: check file stream for errors
 			TGALoaderListener listener;
-			LoadTga(fileStream, &listener);
+			TGAImage result = LoadTga(fileStream, &listener);
 
 			fileStream.close();
 
-			return listener.image;
+			return result;
 		}
 
-		void LoadTga(std::istream &stream, ITGALoaderListener* listener) {
+		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener) {
 			// TODO: assert the stream is binary and readable
 
 			// TODO: TGA is little endian. Make sure reading from stream is little endian
@@ -44,12 +44,13 @@ namespace gw {
 
 			resultImage.width = header.imageSpec.width;
 			resultImage.height = header.imageSpec.height;
+
 			if (header.colorMapSpec.colorMapLength == 0) {
 				resultImage.bitsPerPixel = header.imageSpec.bitsPerPixel;
 			} else {
 				resultImage.bitsPerPixel = header.colorMapSpec.colorMapEntrySize;
 			}
-			
+
 			// TODO: We do not need pixelFormat anymore
 			switch (resultImage.bitsPerPixel) {
 			case 8:
@@ -71,7 +72,7 @@ namespace gw {
 				// TODO: Unknown pixel format
 				break;
 			}
-			
+
 			// Read image iD - skip this, we do not use image id now
 			stream.seekg(header.iDLength, std::ios_base::cur);
 
@@ -84,7 +85,7 @@ namespace gw {
 					// TODO: malloc error
 					/*file.close();
 					return TGALoaderError::MALLOC_ERROR;*/
-					return;
+					return resultImage;
 				}
 				stream.read(colorMap, size);
 			}
@@ -96,19 +97,68 @@ namespace gw {
 			size_t imgDataSize = pixelsNumber * bytesPerPixel;
 
 			// Allocate memory for image data
-			char* imgData = listener->newTexture(resultImage);
-			if (!imgData) {
-					// TODO: malloc error
-				return;
+			resultImage.bytes = listener->newTexture(header.imageSpec.bitsPerPixel, header.imageSpec.width, header.imageSpec.height);
+			if (!resultImage.bytes) {
+				// TODO: malloc error
+				return resultImage;
 			}
 
-			// Read pixels
+			// Read pixel data
 			if (header.ImageType == 2 || header.ImageType == 3) {
 				// 2 - Uncompressed, RGB images
 				// 3 - Uncompressed, black and white images.
 
-				stream.read(imgData, imgDataSize);
+				stream.read(resultImage.bytes, imgDataSize);
+
+			} else if (header.ImageType == 10 || header.ImageType == 11) {
+				// 10 - Runlength encoded RGB images
+				// 11 - Runlength encoded black and white images.
+
+				decompressRLE(resultImage.bytes, pixelsNumber, bytesPerPixel, stream);
+			} 
+
+			return resultImage;
+		}
+
+		void decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerPixel, std::istream &stream) {
+
+			// number of pixels read so far
+			uint32_t readPixels = 0;
+
+			// buffer for pixel (on stack)
+			char* colorValues = (char*) alloca(bytesPerPixel);
+			uint8_t packetHeader;
+			uint8_t repetitionCount;
+
+			// Read packets until all pixels have been read
+			while (readPixels < pixelsNumber) {
+
+				// Read packet type (RLE compressed or RAW data)
+				stream.read((char*)&packetHeader, sizeof(packetHeader));
+
+				repetitionCount = (packetHeader & 0x7F) + 1;
+
+				if ((packetHeader & 0x80) == 0x80) {
+					// RLE packet
+
+					// Read repeated color value
+					stream.read(colorValues, bytesPerPixel);
+
+					// Emit repetitionCount times given color value
+					for (int i = 0; i < repetitionCount; i++) {
+						memcpy((void*) &target[readPixels * bytesPerPixel], (void*) colorValues, bytesPerPixel);
+						readPixels++;
+					}
+
+				} else {
+					// RAW packet
+
+					// Emit repetitionCount times upcoming color values
+					stream.read(&target[readPixels * bytesPerPixel], bytesPerPixel * repetitionCount);
+					readPixels += repetitionCount;
+				}
 			}
 		}
+
 	} 
 }

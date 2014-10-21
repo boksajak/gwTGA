@@ -89,23 +89,25 @@ namespace gw {
 
 		class ITGALoaderListener { 
 		public: 
-			virtual char* newTexture(const TGAImage &image) = 0; 
+			virtual char* newTexture(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height) = 0; 
 		}; 
 
 		class TGALoaderListener : public ITGALoaderListener {
 		public: 
-			char* newTexture(const TGAImage &image) {
-				this->image = image;
-				return new char[(image.bitsPerPixel / 8) * (image.height * image.width)];
+			char* newTexture(const unsigned int &bitsPerPixel,const unsigned int &width,  const unsigned int &height) {
+				return new char[(bitsPerPixel / 8) * (height * width)];
 			}
 
-			TGAImage image;
 		};
 
 		TGAImage LoadTgaFromFile(char* fileName);
 		TGAImage LoadTga(std::istream &stream);
 
-		void LoadTgaFromFile(char* fileName, ITGALoaderListener* listener);
-		void LoadTga(std::istream &stream, ITGALoaderListener* listener);
+		TGAImage LoadTgaFromFile(char* fileName, ITGALoaderListener* listener);
+		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener);
+
+		// ---------------------------
+
+		void decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerPixel, std::istream &stream);
 	} 
 }

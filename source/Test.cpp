@@ -2,5 +2,5 @@
 
 
 int main(int argc, char *argv[]) {
-	gw::tga::LoadTgaFromFile("f1car.bmp.tga");
+	gw::tga::TGAImage img = gw::tga::LoadTgaFromFile("24_rle.tga");
 }
