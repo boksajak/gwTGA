@@ -52,6 +52,7 @@ namespace gw {
 			}
 
 			// TODO: We do not need pixelFormat anymore
+			// Leave this as a check for supported formats
 			switch (resultImage.bitsPerPixel) {
 			case 8:
 				resultImage.pixelFormat = TGAFormat::LUMINANCE_U8;
@@ -92,12 +93,14 @@ namespace gw {
 
 			// Read image data
 			size_t pixelsNumber = header.imageSpec.width * header.imageSpec.height;
+
 			// TODO: Bits per pixel has to be divisible by 8, do some checking before!
 			size_t bytesPerPixel = resultImage.bitsPerPixel / 8;
 			size_t imgDataSize = pixelsNumber * bytesPerPixel;
 
 			// Allocate memory for image data
 			resultImage.bytes = listener->newTexture(header.imageSpec.bitsPerPixel, header.imageSpec.width, header.imageSpec.height);
+
 			if (!resultImage.bytes) {
 				// TODO: malloc error
 				return resultImage;
@@ -111,11 +114,38 @@ namespace gw {
 				stream.read(resultImage.bytes, imgDataSize);
 
 			} else if (header.ImageType == 10 || header.ImageType == 11) {
+
 				// 10 - Runlength encoded RGB images
 				// 11 - Runlength encoded black and white images.
-
 				decompressRLE(resultImage.bytes, pixelsNumber, bytesPerPixel, stream);
-			} 
+
+			}  else if (header.ImageType == 1 || header.ImageType == 9 ) {
+				// 1  -  Uncompressed, color-mapped images
+				// 9  -  Runlength encoded color-mapped images
+
+				// Check color map entry length
+				if (header.imageSpec.bitsPerPixel != 8 && header.imageSpec.bitsPerPixel != 16) {
+					// TODO ERROR("Unsupported color map entry length");
+					return resultImage;
+				}
+
+				// Check color map presence
+				if (header.colorMapType != 1 || colorMap == NULL) {
+					// TODO ERROR("Color map not present in file");
+					return resultImage;
+				}
+
+				if (header.ImageType == 1) {
+					// 1  -  Uncompressed, color-mapped images
+
+					decompressColorMap(resultImage.bytes, pixelsNumber, bytesPerPixel, header.colorMapSpec.colorMapEntrySize / 8, colorMap, stream);
+
+				} else if (header.ImageType == 9) {
+					// 9  -  Runlength encoded color-mapped images
+				}
+			}
+
+			if (colorMap != NULL) delete[] colorMap;
 
 			return resultImage;
 		}
@@ -157,6 +187,19 @@ namespace gw {
 					stream.read(&target[readPixels * bytesPerPixel], bytesPerPixel * repetitionCount);
 					readPixels += repetitionCount;
 				}
+			}
+		}
+
+		void decompressColorMap(char* target, size_t pixelsNumber, size_t bytesPerPixel, size_t bytesPerColorMapEntry, char* colorMap, std::istream &stream) {
+
+			for (size_t i = 0; i < pixelsNumber * bytesPerPixel; i += bytesPerPixel) {
+				uint16_t colorIdx;
+
+				// Read either 8 or 16 bit color index (TODO: make sure this works on little/big endian machines)
+				stream.read((char*) &colorIdx, bytesPerColorMapEntry);
+
+				memcpy((void*) &target[i], (void*)  colorMap[colorIdx * bytesPerPixel], bytesPerPixel);
+
 			}
 		}
 

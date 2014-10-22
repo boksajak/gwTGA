@@ -109,5 +109,7 @@ namespace gw {
 		// ---------------------------
 
 		void decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerPixel, std::istream &stream);
+		void decompressColorMap(char* target, size_t pixelsNumber, size_t bytesPerPixel, size_t bytesPerColorMapEntry, char* colorMap, std::istream &stream);
+		
 	} 
 }
