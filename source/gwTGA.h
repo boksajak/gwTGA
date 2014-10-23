@@ -107,9 +107,19 @@ namespace gw {
 		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener);
 
 		// ---------------------------
+		
+		typedef void(*fetchPixelFunc)(void* target, void* input, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry);
+		typedef void(*fetchPixelsFunc)(char* target, std::istream &stream, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry, size_t count);
 
-		void decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerPixel, std::istream &stream);
-		void decompressColorMap(char* target, size_t pixelsNumber, size_t bytesPerPixel, size_t bytesPerColorMapEntry, char* colorMap, std::istream &stream);
+		void fetchPixelUncompressed(void* target, void* input, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry);
+		void fetchPixelColorMap(void* target, void* input, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry);
+
+		void fetchPixelsUncompressed(char* target, std::istream &stream, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry, size_t count);
+		void fetchPixelsColorMap(char* target, std::istream &stream, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry, size_t count);
+
+		template<fetchPixelFunc, fetchPixelsFunc>
+		void decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerPixel, std::istream &stream, char* colorMap, size_t bytesPerColorMapEntry);
+		//void decompressColorMap(char* target, size_t pixelsNumber, size_t bytesPerPixel, size_t bytesPerColorMapEntry, char* colorMap, std::istream &stream);
 		
 	} 
 }
