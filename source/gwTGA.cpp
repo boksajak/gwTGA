@@ -7,12 +7,19 @@ namespace gw {
 
 		TGAImage LoadTgaFromFile(char* fileName) {
 
+			TGAImage result;
+
 			std::ifstream fileStream;
 			fileStream.open(fileName, std::ifstream::in | std::ifstream::binary);
 
+			if (fileStream.fail()) {
+				// TODO Error
+				return result;
+			}
+
 			// TODO: check file stream for errors
 			TGALoaderListener listener;
-			TGAImage result = LoadTga(fileStream, &listener);
+			result = LoadTga(fileStream, &listener);
 
 			fileStream.close();
 
@@ -117,7 +124,7 @@ namespace gw {
 
 				// 10 - Runlength encoded RGB images
 				// 11 - Runlength encoded black and white images.
-				decompressRLE<fetchPixelUncompressed, fetchPixelsUncompressed>(resultImage.bytes, pixelsNumber, bytesPerPixel, stream,  NULL, 0);
+				decompressRLE<fetchPixelUncompressed, fetchPixelsUncompressed>(resultImage.bytes, pixelsNumber, bytesPerPixel, stream, NULL, bytesPerPixel);
 
 			}  else if (header.ImageType == 1 || header.ImageType == 9 ) {
 				// 1  -  Uncompressed, color-mapped images
@@ -139,11 +146,11 @@ namespace gw {
 
 					// 1  -  Uncompressed, color-mapped images
 					//decompressColorMap(resultImage.bytes, pixelsNumber, bytesPerPixel, header.colorMapSpec.colorMapEntrySize / 8, colorMap, stream);
-					fetchPixelsColorMap(resultImage.bytes, stream, bytesPerPixel, colorMap, header.imageSpec.bitsPerPixel / 8, pixelsNumber);
+					fetchPixelsColorMap(resultImage.bytes, stream, header.imageSpec.bitsPerPixel / 8, colorMap, bytesPerPixel, pixelsNumber);
 				} else if (header.ImageType == 9) {
 
 					// 9  -  Runlength encoded color-mapped images
-					decompressRLE<fetchPixelColorMap, fetchPixelsColorMap>(resultImage.bytes, pixelsNumber, bytesPerPixel, stream, colorMap, header.imageSpec.bitsPerPixel / 8);
+					decompressRLE<fetchPixelColorMap, fetchPixelsColorMap>(resultImage.bytes, pixelsNumber, header.imageSpec.bitsPerPixel / 8, stream, colorMap, bytesPerPixel);
 				}
 			}
 
@@ -152,16 +159,16 @@ namespace gw {
 			return resultImage;
 		}
 
-		void fetchPixelUncompressed(void* target, void* input, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry) { 
-			memcpy(target, input, bytesPerPixel);
+		void fetchPixelUncompressed(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
+			memcpy(target, input, bytesPerInputPixel);
 		}
 
-		void fetchPixelColorMap(void* target, void* input, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry) { 
+		void fetchPixelColorMap(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
 			//// read index in little endian
 			size_t colorIdx = 0;
 			// Read color index (TODO: make sure this works on little/big endian machines)
 			//// TODO: assert that bytesPerColorMapEntry is always 1, 2 or 3
-			switch (bytesPerColorMapEntry) {
+			switch (bytesPerInputPixel) {
 			case 1:
 				colorIdx = *((uint8_t*) input);
 				break;
@@ -172,22 +179,22 @@ namespace gw {
 				colorIdx = *((uint32_t*) input) & 0x00FFFFFF;
 				break;
 			}
-			memcpy(target, (void*) &colorMap[colorIdx * bytesPerPixel], bytesPerPixel);
+			memcpy(target, (void*) &colorMap[colorIdx * bytesPerOutputPixel], bytesPerOutputPixel);
 		}
 
-		void fetchPixelsUncompressed(char* target, std::istream &stream, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry, size_t count) { 
-			stream.read(target, bytesPerPixel * count);
+		void fetchPixelsUncompressed(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count) { 
+			stream.read(target, bytesPerInputPixel * count);
 		}
 
-		void fetchPixelsColorMap(char* target, std::istream &stream, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry, size_t count) { 
+		void fetchPixelsColorMap(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count) { 
 
 			size_t colorIdx = 0;
 
-			for (size_t i = 0; i < count * bytesPerPixel; i += bytesPerPixel) {
+			for (size_t i = 0; i < count * bytesPerOutputPixel; i += bytesPerOutputPixel) {
 
 				// Read color index (TODO: make sure this works on little/big endian machines)
 				//// TODO: assert that bytesPerColorMapEntry is always 1, 2 or 3
-				stream.read((char*) &colorIdx, bytesPerColorMapEntry);
+				stream.read((char*) &colorIdx, bytesPerInputPixel);
 
 				//// read index in little endian
 				//switch (bytesPerColorMapEntry) {
@@ -199,18 +206,18 @@ namespace gw {
 				//	break;
 				//}
 
-				memcpy((void*) &target[i], (void*) &colorMap[colorIdx * bytesPerPixel], bytesPerPixel);
+				memcpy((void*) &target[i], (void*) &colorMap[colorIdx * bytesPerOutputPixel], bytesPerOutputPixel);
 			}
 		}
 
 		template<fetchPixelFunc fetchPixel, fetchPixelsFunc fetchPixels>
-		void decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerPixel, std::istream &stream, char* colorMap, size_t bytesPerColorMapEntry) {
+		void decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel) {
 
 			// number of pixels read so far
 			size_t readPixels = 0;
 
 			// buffer for pixel (on stack)
-			char* colorValues = (char*) alloca(bytesPerPixel);
+			char* colorValues = (char*) alloca(bytesPerInputPixel);
 			uint8_t packetHeader;
 			uint8_t repetitionCount;
 
@@ -226,12 +233,12 @@ namespace gw {
 					// RLE packet
 
 					// Read repeated color value
-					stream.read(colorValues, bytesPerPixel);
+					stream.read(colorValues, bytesPerInputPixel);
 
 					// Emit repetitionCount times given color value
 					for (int i = 0; i < repetitionCount; i++) {
 						// TODO: Check if this is inlined
-						fetchPixel((void*) &target[readPixels * bytesPerPixel], (void*) colorValues, bytesPerPixel, colorMap, bytesPerColorMapEntry);
+						fetchPixel((void*) &target[readPixels * bytesPerOutputPixel], (void*) colorValues, bytesPerInputPixel, colorMap, bytesPerOutputPixel);
 						//memcpy((void*) &target[readPixels * bytesPerPixel], (void*) colorValues, bytesPerPixel);
 						readPixels++;
 					}
@@ -241,25 +248,12 @@ namespace gw {
 
 					// Emit repetitionCount times upcoming color values
 					// TODO: Check if this is inlined
-					fetchPixels(&target[readPixels * bytesPerPixel], stream, bytesPerPixel, colorMap, bytesPerColorMapEntry, repetitionCount);
+					fetchPixels(&target[readPixels * bytesPerOutputPixel], stream, bytesPerInputPixel, colorMap, bytesPerOutputPixel, repetitionCount);
 					//stream.read(&target[readPixels * bytesPerPixel], bytesPerPixel * repetitionCount);
 					readPixels += repetitionCount;
 				}
 			}
 		}
-
-		// TODO: Replace by functor fetchPixels
-		//void decompressColorMap(char* target, size_t pixelsNumber, size_t bytesPerPixel, size_t bytesPerColorMapEntry, char* colorMap, std::istream &stream) {
-
-		//	for (size_t i = 0; i < pixelsNumber * bytesPerPixel; i += bytesPerPixel) {
-		//		uint16_t colorIdx;
-
-		//		// Read either 8 or 16 bit color index (TODO: make sure this works on little/big endian machines)
-		//		stream.read((char*) &colorIdx, bytesPerColorMapEntry);
-
-		//		memcpy((void*) &target[i], (void*) &colorMap[colorIdx * bytesPerPixel], bytesPerPixel);
-		//	}
-		//}
 
 	} 
 }

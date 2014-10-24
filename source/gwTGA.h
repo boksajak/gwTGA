@@ -108,18 +108,17 @@ namespace gw {
 
 		// ---------------------------
 		
-		typedef void(*fetchPixelFunc)(void* target, void* input, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry);
-		typedef void(*fetchPixelsFunc)(char* target, std::istream &stream, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry, size_t count);
+		typedef void(*fetchPixelFunc)(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);
+		typedef void(*fetchPixelsFunc)(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
 
-		void fetchPixelUncompressed(void* target, void* input, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry);
-		void fetchPixelColorMap(void* target, void* input, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry);
+		void fetchPixelUncompressed(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);
+		void fetchPixelColorMap(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);
 
-		void fetchPixelsUncompressed(char* target, std::istream &stream, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry, size_t count);
-		void fetchPixelsColorMap(char* target, std::istream &stream, size_t bytesPerPixel, char* colorMap, size_t bytesPerColorMapEntry, size_t count);
+		void fetchPixelsUncompressed(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
+		void fetchPixelsColorMap(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
 
 		template<fetchPixelFunc, fetchPixelsFunc>
-		void decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerPixel, std::istream &stream, char* colorMap, size_t bytesPerColorMapEntry);
-		//void decompressColorMap(char* target, size_t pixelsNumber, size_t bytesPerPixel, size_t bytesPerColorMapEntry, char* colorMap, std::istream &stream);
+		void decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel);
 		
 	} 
 }
