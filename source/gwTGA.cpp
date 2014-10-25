@@ -3,7 +3,8 @@
 
 namespace gw {          
 	namespace tga {
-
+		
+		using namespace details;
 
 		TGAImage LoadTgaFromFile(char* fileName) {
 
@@ -60,26 +61,26 @@ namespace gw {
 
 			// TODO: We do not need pixelFormat anymore
 			// Leave this as a check for supported formats
-			switch (resultImage.bitsPerPixel) {
-			case 8:
-				resultImage.pixelFormat = TGAFormat::LUMINANCE_U8;
-				break;
-			case 16:
-				resultImage.pixelFormat = TGAFormat::BGRA5551_U16;
-				break;
-			case 24:
-				resultImage.pixelFormat = TGAFormat::BGR_U24;
-				break;
-			case 32:
-				resultImage.pixelFormat = TGAFormat::BGRA_U32;
-				break;
-			case 96:
-				resultImage.pixelFormat = TGAFormat::BGR_F96;
-				break;
-			default:
-				// TODO: Unknown pixel format
-				break;
-			}
+			//switch (resultImage.bitsPerPixel) {
+			//case 8:
+			//	resultImage.pixelFormat = TGAFormat::LUMINANCE_U8;
+			//	break;
+			//case 16:
+			//	resultImage.pixelFormat = TGAFormat::BGRA5551_U16;
+			//	break;
+			//case 24:
+			//	resultImage.pixelFormat = TGAFormat::BGR_U24;
+			//	break;
+			//case 32:
+			//	resultImage.pixelFormat = TGAFormat::BGRA_U32;
+			//	break;
+			//case 96:
+			//	resultImage.pixelFormat = TGAFormat::BGR_F96;
+			//	break;
+			//default:
+			//	// TODO: Unknown pixel format
+			//	break;
+			//}
 			
 			// Read image iD - skip this, we do not use image id now
 			stream.seekg(header.iDLength, std::ios_base::cur);
@@ -159,101 +160,104 @@ namespace gw {
 			return resultImage;
 		}
 
-		void fetchPixelUncompressed(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
-			memcpy(target, input, bytesPerInputPixel);
-		}
+		namespace details {
 
-		void fetchPixelColorMap(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
-			//// read index in little endian
-			size_t colorIdx = 0;
-			// Read color index (TODO: make sure this works on little/big endian machines)
-			//// TODO: assert that bytesPerColorMapEntry is always 1, 2 or 3
-			switch (bytesPerInputPixel) {
-			case 1:
-				colorIdx = *((uint8_t*) input);
-				break;
-			case 2:
-				colorIdx = *((uint16_t*) input);
-				break;
-			case 3:
-				colorIdx = *((uint32_t*) input) & 0x00FFFFFF;
-				break;
+			void fetchPixelUncompressed(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
+				memcpy(target, input, bytesPerInputPixel);
 			}
-			memcpy(target, (void*) &colorMap[colorIdx * bytesPerOutputPixel], bytesPerOutputPixel);
-		}
 
-		void fetchPixelsUncompressed(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count) { 
-			stream.read(target, bytesPerInputPixel * count);
-		}
-
-		void fetchPixelsColorMap(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count) { 
-
-			size_t colorIdx = 0;
-
-			for (size_t i = 0; i < count * bytesPerOutputPixel; i += bytesPerOutputPixel) {
-
+			void fetchPixelColorMap(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
+				//// read index in little endian
+				size_t colorIdx = 0;
 				// Read color index (TODO: make sure this works on little/big endian machines)
 				//// TODO: assert that bytesPerColorMapEntry is always 1, 2 or 3
-				stream.read((char*) &colorIdx, bytesPerInputPixel);
-
-				//// read index in little endian
-				//switch (bytesPerColorMapEntry) {
-				//case 2:
-				//	colorIdx = ((colorIdx & 0xFF00) >> 8) | ((colorIdx & 0x00FF) << 8);
-				//	break;
-				//case 3:
-				//	colorIdx = ((colorIdx & 0xFF0000) >> 16) | (colorIdx & 0x00FF00) | ((colorIdx & 0x0000FF) << 16);
-				//	break;
-				//}
-
-				memcpy((void*) &target[i], (void*) &colorMap[colorIdx * bytesPerOutputPixel], bytesPerOutputPixel);
+				switch (bytesPerInputPixel) {
+				case 1:
+					colorIdx = *((uint8_t*) input);
+					break;
+				case 2:
+					colorIdx = *((uint16_t*) input);
+					break;
+				case 3:
+					colorIdx = *((uint32_t*) input) & 0x00FFFFFF;
+					break;
+				}
+				memcpy(target, (void*) &colorMap[colorIdx * bytesPerOutputPixel], bytesPerOutputPixel);
 			}
-		}
 
-		template<fetchPixelFunc fetchPixel, fetchPixelsFunc fetchPixels>
-		void decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel) {
+			void fetchPixelsUncompressed(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count) { 
+				stream.read(target, bytesPerInputPixel * count);
+			}
 
-			// number of pixels read so far
-			size_t readPixels = 0;
+			void fetchPixelsColorMap(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count) { 
 
-			// buffer for pixel (on stack)
-			char* colorValues = (char*) alloca(bytesPerInputPixel);
-			uint8_t packetHeader;
-			uint8_t repetitionCount;
+				size_t colorIdx = 0;
 
-			// Read packets until all pixels have been read
-			while (readPixels < pixelsNumber) {
+				for (size_t i = 0; i < count * bytesPerOutputPixel; i += bytesPerOutputPixel) {
 
-				// Read packet type (RLE compressed or RAW data)
-				stream.read((char*)&packetHeader, sizeof(packetHeader));
+					// Read color index (TODO: make sure this works on little/big endian machines)
+					//// TODO: assert that bytesPerColorMapEntry is always 1, 2 or 3
+					stream.read((char*) &colorIdx, bytesPerInputPixel);
 
-				repetitionCount = (packetHeader & 0x7F) + 1;
+					//// read index in little endian
+					//switch (bytesPerColorMapEntry) {
+					//case 2:
+					//	colorIdx = ((colorIdx & 0xFF00) >> 8) | ((colorIdx & 0x00FF) << 8);
+					//	break;
+					//case 3:
+					//	colorIdx = ((colorIdx & 0xFF0000) >> 16) | (colorIdx & 0x00FF00) | ((colorIdx & 0x0000FF) << 16);
+					//	break;
+					//}
 
-				if ((packetHeader & 0x80) == 0x80) {
-					// RLE packet
-
-					// Read repeated color value
-					stream.read(colorValues, bytesPerInputPixel);
-
-					// Emit repetitionCount times given color value
-					for (int i = 0; i < repetitionCount; i++) {
-						// TODO: Check if this is inlined
-						fetchPixel((void*) &target[readPixels * bytesPerOutputPixel], (void*) colorValues, bytesPerInputPixel, colorMap, bytesPerOutputPixel);
-						//memcpy((void*) &target[readPixels * bytesPerPixel], (void*) colorValues, bytesPerPixel);
-						readPixels++;
-					}
-
-				} else {
-					// RAW packet
-
-					// Emit repetitionCount times upcoming color values
-					// TODO: Check if this is inlined
-					fetchPixels(&target[readPixels * bytesPerOutputPixel], stream, bytesPerInputPixel, colorMap, bytesPerOutputPixel, repetitionCount);
-					//stream.read(&target[readPixels * bytesPerPixel], bytesPerPixel * repetitionCount);
-					readPixels += repetitionCount;
+					memcpy((void*) &target[i], (void*) &colorMap[colorIdx * bytesPerOutputPixel], bytesPerOutputPixel);
 				}
 			}
-		}
 
+			template<fetchPixelFunc fetchPixel, fetchPixelsFunc fetchPixels>
+			void decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel) {
+
+				// number of pixels read so far
+				size_t readPixels = 0;
+
+				// buffer for pixel (on stack)
+				char* colorValues = (char*) alloca(bytesPerInputPixel);
+				uint8_t packetHeader;
+				uint8_t repetitionCount;
+
+				// Read packets until all pixels have been read
+				while (readPixels < pixelsNumber) {
+
+					// Read packet type (RLE compressed or RAW data)
+					stream.read((char*)&packetHeader, sizeof(packetHeader));
+
+					repetitionCount = (packetHeader & 0x7F) + 1;
+
+					if ((packetHeader & 0x80) == 0x80) {
+						// RLE packet
+
+						// Read repeated color value
+						stream.read(colorValues, bytesPerInputPixel);
+
+						// Emit repetitionCount times given color value
+						for (int i = 0; i < repetitionCount; i++) {
+							// TODO: Check if this is inlined
+							fetchPixel((void*) &target[readPixels * bytesPerOutputPixel], (void*) colorValues, bytesPerInputPixel, colorMap, bytesPerOutputPixel);
+							//memcpy((void*) &target[readPixels * bytesPerPixel], (void*) colorValues, bytesPerPixel);
+							readPixels++;
+						}
+
+					} else {
+						// RAW packet
+
+						// Emit repetitionCount times upcoming color values
+						// TODO: Check if this is inlined
+						fetchPixels(&target[readPixels * bytesPerOutputPixel], stream, bytesPerInputPixel, colorMap, bytesPerOutputPixel, repetitionCount);
+						//stream.read(&target[readPixels * bytesPerPixel], bytesPerPixel * repetitionCount);
+						readPixels += repetitionCount;
+					}
+				}
+			}
+
+		}
 	} 
 }
