@@ -31,6 +31,7 @@ bool test(char* testName, char* tgaFileName, char* testFileName) {
 	size_t testFileSize = ifs.tellg(); 
 
 	char* testImg = new char[testFileSize];
+	ifs.seekg(0, std::ios::beg);
 
 	ifs.read(testImg, testFileSize);
 
@@ -58,4 +59,9 @@ int main(int argc, char *argv[]) {
 	test("Testing 24-bit RGB RLE compressed image...", "mandrill_24rle.tga", "mandrill_24rle.tga.test");
 	test("Testing 24-bit RGB image with 8 bit palette...", "mandrill_24_palette8.tga", "mandrill_24_palette8.tga.test");
 	test("Testing 24-bit RGB image with 8 bit palette RLE compressed...", "mandrill_24rle_palette8.tga", "mandrill_24rle_palette8.tga.test");
+
+	std::cout << "Press any key to end";
+
+	getchar();
+
 }
