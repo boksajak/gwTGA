@@ -55,10 +55,26 @@ bool test(char* testName, char* tgaFileName, char* testFileName) {
 }
 
 int main(int argc, char *argv[]) {
+
+	test("Testing 8-bit greyscale image uncompressed...", "mandrill_8.tga", "mandrill_8.tga.test");
+	test("Testing 8-bit greyscale RLE compressed image...", "mandrill_8rle.tga", "mandrill_8rle.tga.test");
+	test("Testing 8-bit greyscale image with 8 bit palette...", "mandrill_8_palette8.tga", "mandrill_8_palette8.tga.test");
+	test("Testing 8-bit greyscale image with 8 bit palette RLE compressed...", "mandrill_8rle_palette8.tga", "mandrill_8rle_palette8.tga.test");
+
+	test("Testing 16-bit RGB image uncompressed...", "mandrill_16.tga", "mandrill_16.tga.test");
+	test("Testing 16-bit RGB RLE compressed image...", "mandrill_16rle.tga", "mandrill_16rle.tga.test");
+	test("Testing 16-bit RGB image with 8 bit palette...", "mandrill_16_palette8.tga", "mandrill_16_palette8.tga.test");
+	test("Testing 16-bit RGB image with 8 bit palette RLE compressed...", "mandrill_16rle_palette8.tga", "mandrill_16rle_palette8.tga.test");
+
 	test("Testing 24-bit RGB image uncompressed...", "mandrill_24.tga", "mandrill_24.tga.test");
 	test("Testing 24-bit RGB RLE compressed image...", "mandrill_24rle.tga", "mandrill_24rle.tga.test");
 	test("Testing 24-bit RGB image with 8 bit palette...", "mandrill_24_palette8.tga", "mandrill_24_palette8.tga.test");
 	test("Testing 24-bit RGB image with 8 bit palette RLE compressed...", "mandrill_24rle_palette8.tga", "mandrill_24rle_palette8.tga.test");
+
+	test("Testing 32-bit RGB image uncompressed...", "mandrill_32.tga", "mandrill_32.tga.test");
+	test("Testing 32-bit RGB RLE compressed image...", "mandrill_32rle.tga", "mandrill_32rle.tga.test");
+	test("Testing 32-bit RGB image with 8 bit palette...", "mandrill_32_palette8.tga", "mandrill_32_palette8.tga.test");
+	test("Testing 32-bit RGB image with 8 bit palette RLE compressed...", "mandrill_32rle_palette8.tga", "mandrill_32rle_palette8.tga.test");
 
 	std::cout << "Press any key to end";
 
