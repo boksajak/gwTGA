@@ -59,6 +59,24 @@ namespace gw {
 				resultImage.bitsPerPixel = header.colorMapSpec.colorMapEntrySize;
 			}
 
+			resultImage.attributeBitsPerPixel = header.imageSpec.imgDescriptor & 0x0F;
+
+			switch (header.imageSpec.imgDescriptor & 0x30) {
+			case 0x00:
+				resultImage.origin = TGAImageOrigin::BOTTOM_LEFT;
+				break;
+			case 0x10:
+				resultImage.origin = TGAImageOrigin::BOTTOM_RIGHT;
+				break;
+			case 0x20:
+				resultImage.origin = TGAImageOrigin::TOP_LEFT;
+				break;
+			case 0x30:
+				resultImage.origin = TGAImageOrigin::TOP_RIGHT;
+				break;
+			}
+			
+
 			// TODO: We do not need pixelFormat anymore
 			// Leave this as a check for supported formats
 			//switch (resultImage.bitsPerPixel) {

@@ -19,6 +19,12 @@
 namespace gw {          
 	namespace tga {
 
+		enum TGAImageOrigin {
+			BOTTOM_LEFT,
+			BOTTOM_RIGHT,
+			TOP_LEFT,
+			TOP_RIGHT
+		};
 
 		class ITGALoaderListener { 
 		public: 
@@ -33,6 +39,8 @@ namespace gw {
 			unsigned int height;
 			//TGAFormat pixelFormat;
 			unsigned char bitsPerPixel;
+			unsigned char attributeBitsPerPixel;
+			TGAImageOrigin origin;
 		};
 
 		TGAImage LoadTgaFromFile(char* fileName);
@@ -40,7 +48,6 @@ namespace gw {
 
 		TGAImage LoadTgaFromFile(char* fileName, ITGALoaderListener* listener);
 		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener);
-
 
 		namespace details {
 			struct TGAColorMapSpec {
@@ -108,7 +115,6 @@ namespace gw {
 				}
 
 			};
-
 
 			typedef void(*fetchPixelFunc)(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);
 			typedef void(*fetchPixelsFunc)(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);

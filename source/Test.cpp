@@ -54,6 +54,32 @@ bool test(char* testName, char* tgaFileName, char* testFileName) {
 	return result;
 }
 
+void printImageInfo(gw::tga::TGAImage img) {
+
+	std::cout << "Width: " << (int) img.width << std::endl;
+	std::cout << "Height: " << (int) img.height << std::endl;
+	std::cout << "Bits per pixel: " << (int) img.bitsPerPixel << std::endl;
+	std::cout << "Attribute bits per pixel: " << (int) img.attributeBitsPerPixel << std::endl;
+	std::cout << "Origin: ";
+
+	switch (img.origin) {
+	case gw::tga::TGAImageOrigin::BOTTOM_LEFT:
+		std::cout << "Bottom left";
+		break;
+	case gw::tga::TGAImageOrigin::BOTTOM_RIGHT:
+		std::cout << "Bottom right";
+		break;
+	case gw::tga::TGAImageOrigin::TOP_LEFT:
+		std::cout << "Top left";
+		break;
+	case gw::tga::TGAImageOrigin::TOP_RIGHT:
+		std::cout << "Top right";
+		break;
+	}
+	std::cout << std::endl;
+
+}
+
 int main(int argc, char *argv[]) {
 
 	test("Testing 8-bit greyscale image uncompressed...", "mandrill_8.tga", "mandrill_8.tga.test");
@@ -76,6 +102,11 @@ int main(int argc, char *argv[]) {
 	test("Testing 32-bit RGB image with 8 bit palette...", "mandrill_32_palette8.tga", "mandrill_32_palette8.tga.test");
 	test("Testing 32-bit RGB image with 8 bit palette RLE compressed...", "mandrill_32rle_palette8.tga", "mandrill_32rle_palette8.tga.test");
 
+	std::cout << std::endl;
+
+	printImageInfo(gw::tga::LoadTgaFromFile("mandrill_32.tga"));
+
+	std::cout << std::endl;
 	std::cout << "Press any key to end";
 
 	getchar();
