@@ -14,11 +14,10 @@ namespace gw {
 			fileStream.open(fileName, std::ifstream::in | std::ifstream::binary);
 
 			if (fileStream.fail()) {
-				// TODO Error
+				result.error = TGAError::NONE; 
 				return result;
 			}
 
-			// TODO: check file stream for errors
 			TGALoaderListener listener;
 			result = LoadTga(fileStream, &listener);
 

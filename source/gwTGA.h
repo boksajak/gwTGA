@@ -20,10 +20,16 @@ namespace gw {
 	namespace tga {
 
 		enum TGAImageOrigin {
+			UNDEFINED,
 			BOTTOM_LEFT,
 			BOTTOM_RIGHT,
 			TOP_LEFT,
 			TOP_RIGHT
+		};
+
+		enum TGAError {
+			NONE,
+			NO_FILE
 		};
 
 		class ITGALoaderListener { 
@@ -32,15 +38,18 @@ namespace gw {
 		}; 
 
 		struct TGAImage {
-			// TODO: constructor and destructor - destroy allocated bytes if any
 
-			char* bytes;
-			unsigned int width;
-			unsigned int height;
+			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(TGAImageOrigin::UNDEFINED), error(TGAError::NONE) { }
+
+			char*			bytes;
+			unsigned int	width;
+			unsigned int	height;
+			unsigned char	bitsPerPixel;
+			unsigned char	attributeBitsPerPixel;
+			TGAImageOrigin	origin;
+			TGAError		error;
+
 			//TGAFormat pixelFormat;
-			unsigned char bitsPerPixel;
-			unsigned char attributeBitsPerPixel;
-			TGAImageOrigin origin;
 		};
 
 		TGAImage LoadTgaFromFile(char* fileName);
