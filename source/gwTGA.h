@@ -20,16 +20,20 @@ namespace gw {
 	namespace tga {
 
 		enum TGAImageOrigin {
-			UNDEFINED,
-			BOTTOM_LEFT,
-			BOTTOM_RIGHT,
-			TOP_LEFT,
-			TOP_RIGHT
+			GWTGA_UNDEFINED = 0,
+			GWTGA_BOTTOM_LEFT,
+			GWTGA_BOTTOM_RIGHT,
+			GWTGA_TOP_LEFT,
+			GWTGA_TOP_RIGHT
 		};
 
 		enum TGAError {
-			NONE,
-			NO_FILE
+			GWTGA_NONE = 0,
+			GWTGA_CANNOT_OPEN_FILE,
+			GWTGA_IO_ERROR,
+			GWTGA_MALLOC_ERROR,
+			GWTGA_INVALID_DATA,
+			GWTGA_UNSUPPORTED_PIXEL_DEPTH
 		};
 
 		class ITGALoaderListener { 
@@ -39,7 +43,7 @@ namespace gw {
 
 		struct TGAImage {
 
-			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(TGAImageOrigin::UNDEFINED), error(TGAError::NONE) { }
+			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(GWTGA_UNDEFINED), error(GWTGA_NONE) { }
 
 			char*			bytes;
 			unsigned int	width;
@@ -126,16 +130,16 @@ namespace gw {
 			};
 
 			typedef void(*fetchPixelFunc)(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);
-			typedef void(*fetchPixelsFunc)(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
+			typedef bool(*fetchPixelsFunc)(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
 
 			void fetchPixelUncompressed(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);
 			void fetchPixelColorMap(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);
 
-			void fetchPixelsUncompressed(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
-			void fetchPixelsColorMap(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
+			bool fetchPixelsUncompressed(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
+			bool fetchPixelsColorMap(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
 
 			template<fetchPixelFunc, fetchPixelsFunc>
-			void decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel);
+			bool decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel);
 
 		}
 	} 

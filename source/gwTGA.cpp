@@ -1,6 +1,5 @@
 #include "gwTGA.h"
 
-
 namespace gw {          
 	namespace tga {
 		
@@ -14,7 +13,7 @@ namespace gw {
 			fileStream.open(fileName, std::ifstream::in | std::ifstream::binary);
 
 			if (fileStream.fail()) {
-				result.error = TGAError::NONE; 
+				result.error = GWTGA_CANNOT_OPEN_FILE; 
 				return result;
 			}
 
@@ -27,8 +26,6 @@ namespace gw {
 		}
 
 		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener) {
-			// TODO: assert the stream is binary and readable
-
 			// TODO: TGA is little endian. Make sure reading from stream is little endian
 
 			TGAImage resultImage;
@@ -49,6 +46,12 @@ namespace gw {
 			stream.read((char*)&header.imageSpec.bitsPerPixel, sizeof(header.imageSpec.bitsPerPixel));
 			stream.read((char*)&header.imageSpec.imgDescriptor, sizeof(header.imageSpec.imgDescriptor));
 
+			if (stream.fail()) {
+				// Reading of header failed
+				resultImage.error = GWTGA_IO_ERROR;
+				return resultImage;
+			}
+
 			resultImage.width = header.imageSpec.width;
 			resultImage.height = header.imageSpec.height;
 
@@ -62,19 +65,18 @@ namespace gw {
 
 			switch (header.imageSpec.imgDescriptor & 0x30) {
 			case 0x00:
-				resultImage.origin = TGAImageOrigin::BOTTOM_LEFT;
+				resultImage.origin = GWTGA_BOTTOM_LEFT;
 				break;
 			case 0x10:
-				resultImage.origin = TGAImageOrigin::BOTTOM_RIGHT;
+				resultImage.origin = GWTGA_BOTTOM_RIGHT;
 				break;
 			case 0x20:
-				resultImage.origin = TGAImageOrigin::TOP_LEFT;
+				resultImage.origin = GWTGA_TOP_LEFT;
 				break;
 			case 0x30:
-				resultImage.origin = TGAImageOrigin::TOP_RIGHT;
+				resultImage.origin = GWTGA_TOP_RIGHT;
 				break;
 			}
-			
 
 			// TODO: We do not need pixelFormat anymore
 			// Leave this as a check for supported formats
@@ -105,21 +107,34 @@ namespace gw {
 			// Read color map
 			char* colorMap = NULL;
 			if (header.colorMapSpec.colorMapLength > 0) {
+				// TODO: Consider getting memory from ITGALoaderListener 
 				size_t size = header.colorMapSpec.colorMapLength * (header.colorMapSpec.colorMapEntrySize / 8);
-				colorMap = new char[size];
+				colorMap = new (std::nothrow) char[size];
+				
 				if (!colorMap) {
-					// TODO: malloc error
-					/*file.close();
-					return TGALoaderError::MALLOC_ERROR;*/
+					// Could not allocate memory for color map
+					resultImage.error = GWTGA_MALLOC_ERROR;
 					return resultImage;
 				}
+
 				stream.read(colorMap, size);
+
+				if (stream.fail()) {
+					// Could not read color map from stream
+					resultImage.error = GWTGA_IO_ERROR;
+					return resultImage;
+				}
 			}
 
 			// Read image data
 			size_t pixelsNumber = header.imageSpec.width * header.imageSpec.height;
 
-			// TODO: Bits per pixel has to be divisible by 8, do some checking before!
+			if ((resultImage.bitsPerPixel & 0x07) != 0) {
+				// Bits per pixel has to be divisible by 8
+				resultImage.error = GWTGA_UNSUPPORTED_PIXEL_DEPTH;
+				return resultImage;
+			}
+
 			size_t bytesPerPixel = resultImage.bitsPerPixel / 8;
 			size_t imgDataSize = pixelsNumber * bytesPerPixel;
 
@@ -127,7 +142,7 @@ namespace gw {
 			resultImage.bytes = listener->newTexture(resultImage.bitsPerPixel, header.imageSpec.width, header.imageSpec.height);
 
 			if (!resultImage.bytes) {
-				// TODO: malloc error
+				resultImage.error = GWTGA_MALLOC_ERROR;
 				return resultImage;
 			}
 
@@ -137,6 +152,11 @@ namespace gw {
 				// 3 - Uncompressed, black and white images.
 
 				stream.read(resultImage.bytes, imgDataSize);
+
+				if (stream.fail()) {
+					resultImage.error = GWTGA_IO_ERROR;
+					return resultImage;
+				}
 
 			} else if (header.ImageType == 10 || header.ImageType == 11) {
 
@@ -148,30 +168,34 @@ namespace gw {
 				// 1  -  Uncompressed, color-mapped images
 				// 9  -  Runlength encoded color-mapped images
 
-				// Check color map entry length
-				if (header.imageSpec.bitsPerPixel != 8 && header.imageSpec.bitsPerPixel != 16) {
-					// TODO ERROR("Unsupported color map entry length");
+				if (header.imageSpec.bitsPerPixel != 8 && header.imageSpec.bitsPerPixel != 16 && header.imageSpec.bitsPerPixel != 24) {
+					// Unsupported color map entry length
+					resultImage.error = GWTGA_UNSUPPORTED_PIXEL_DEPTH;
 					return resultImage;
 				}
 
-				// Check color map presence
 				if (header.colorMapType != 1 || colorMap == NULL) {
-					// TODO ERROR("Color map not present in file");
+					// Color map not present in file
+					resultImage.error = GWTGA_INVALID_DATA;
 					return resultImage;
 				}
 
 				if (header.ImageType == 1) {
 
 					// 1  -  Uncompressed, color-mapped images
-					//decompressColorMap(resultImage.bytes, pixelsNumber, bytesPerPixel, header.colorMapSpec.colorMapEntrySize / 8, colorMap, stream);
 					fetchPixelsColorMap(resultImage.bytes, stream, header.imageSpec.bitsPerPixel / 8, colorMap, bytesPerPixel, pixelsNumber);
 				} else if (header.ImageType == 9) {
 
 					// 9  -  Runlength encoded color-mapped images
-					decompressRLE<fetchPixelColorMap, fetchPixelsColorMap>(resultImage.bytes, pixelsNumber, header.imageSpec.bitsPerPixel / 8, stream, colorMap, bytesPerPixel);
+					if (!decompressRLE<fetchPixelColorMap, fetchPixelsColorMap>(resultImage.bytes, pixelsNumber, header.imageSpec.bitsPerPixel / 8, stream, colorMap, bytesPerPixel)) {
+						// Error while reading compressed image data
+						resultImage.error = GWTGA_IO_ERROR;
+						return resultImage;
+					}
 				}
 			}
 
+			// TODO: if we got memory from user, do not delete it here
 			if (colorMap != NULL) delete[] colorMap;
 
 			return resultImage;
@@ -184,10 +208,8 @@ namespace gw {
 			}
 
 			void fetchPixelColorMap(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
-				//// read index in little endian
 				size_t colorIdx = 0;
 				// Read color index (TODO: make sure this works on little/big endian machines)
-				//// TODO: assert that bytesPerColorMapEntry is always 1, 2 or 3
 				switch (bytesPerInputPixel) {
 				case 1:
 					colorIdx = *((uint8_t*) input);
@@ -202,36 +224,37 @@ namespace gw {
 				memcpy(target, (void*) &colorMap[colorIdx * bytesPerOutputPixel], bytesPerOutputPixel);
 			}
 
-			void fetchPixelsUncompressed(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count) { 
+			bool fetchPixelsUncompressed(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count) { 
 				stream.read(target, bytesPerInputPixel * count);
+
+				if (stream.fail()) {
+					return false;
+				}
+
+				return true;
 			}
 
-			void fetchPixelsColorMap(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count) { 
+			bool fetchPixelsColorMap(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count) { 
 
 				size_t colorIdx = 0;
 
 				for (size_t i = 0; i < count * bytesPerOutputPixel; i += bytesPerOutputPixel) {
 
 					// Read color index (TODO: make sure this works on little/big endian machines)
-					//// TODO: assert that bytesPerColorMapEntry is always 1, 2 or 3
 					stream.read((char*) &colorIdx, bytesPerInputPixel);
 
-					//// read index in little endian
-					//switch (bytesPerColorMapEntry) {
-					//case 2:
-					//	colorIdx = ((colorIdx & 0xFF00) >> 8) | ((colorIdx & 0x00FF) << 8);
-					//	break;
-					//case 3:
-					//	colorIdx = ((colorIdx & 0xFF0000) >> 16) | (colorIdx & 0x00FF00) | ((colorIdx & 0x0000FF) << 16);
-					//	break;
-					//}
+					if (stream.fail()) {
+						return false;
+					}
 
 					memcpy((void*) &target[i], (void*) &colorMap[colorIdx * bytesPerOutputPixel], bytesPerOutputPixel);
 				}
+
+				return true;
 			}
 
 			template<fetchPixelFunc fetchPixel, fetchPixelsFunc fetchPixels>
-			void decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel) {
+			bool decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel) {
 
 				// number of pixels read so far
 				size_t readPixels = 0;
@@ -247,6 +270,10 @@ namespace gw {
 					// Read packet type (RLE compressed or RAW data)
 					stream.read((char*)&packetHeader, sizeof(packetHeader));
 
+					if (stream.fail()) {
+						return false;
+					}
+
 					repetitionCount = (packetHeader & 0x7F) + 1;
 
 					if ((packetHeader & 0x80) == 0x80) {
@@ -255,11 +282,14 @@ namespace gw {
 						// Read repeated color value
 						stream.read(colorValues, bytesPerInputPixel);
 
+						if (stream.fail()) {
+							return false;
+						}
+
 						// Emit repetitionCount times given color value
 						for (int i = 0; i < repetitionCount; i++) {
 							// TODO: Check if this is inlined
 							fetchPixel((void*) &target[readPixels * bytesPerOutputPixel], (void*) colorValues, bytesPerInputPixel, colorMap, bytesPerOutputPixel);
-							//memcpy((void*) &target[readPixels * bytesPerPixel], (void*) colorValues, bytesPerPixel);
 							readPixels++;
 						}
 
@@ -268,11 +298,14 @@ namespace gw {
 
 						// Emit repetitionCount times upcoming color values
 						// TODO: Check if this is inlined
-						fetchPixels(&target[readPixels * bytesPerOutputPixel], stream, bytesPerInputPixel, colorMap, bytesPerOutputPixel, repetitionCount);
-						//stream.read(&target[readPixels * bytesPerPixel], bytesPerPixel * repetitionCount);
+						if (!fetchPixels(&target[readPixels * bytesPerOutputPixel], stream, bytesPerInputPixel, colorMap, bytesPerOutputPixel, repetitionCount)) {
+							return false;
+						}
 						readPixels += repetitionCount;
 					}
 				}
+
+				return true;
 			}
 
 		}

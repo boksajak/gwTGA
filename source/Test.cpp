@@ -1,6 +1,5 @@
 #include "gwTGA.h"
 
-
 bool cmpArrays(char* a1, size_t n1, char* a2, size_t n2){
 
 	if (n1 != n2) return false;
@@ -17,6 +16,11 @@ bool test(char* testName, char* tgaFileName, char* testFileName) {
 	// load tga image
 	gw::tga::TGAImage img = gw::tga::LoadTgaFromFile(tgaFileName);
 
+	if (img.error != gw::tga::GWTGA_NONE) {
+		std::cout << testName << "error! Cannot load image" << std::endl;
+		return false;
+	}
+
 	// load reference file
 	std::ifstream ifs;
 
@@ -24,7 +28,6 @@ bool test(char* testName, char* tgaFileName, char* testFileName) {
 
 	if (ifs.fail()) {
 		std::cout << testName << "error! Cannot load reference image" << std::endl;
-		// TODO Error
 		return false;
 	}
 
@@ -56,6 +59,11 @@ bool test(char* testName, char* tgaFileName, char* testFileName) {
 
 void printImageInfo(gw::tga::TGAImage img) {
 
+	if (img.error != gw::tga::GWTGA_NONE) {
+		std::cout << "error! Cannot load image" << std::endl;
+		return;
+	}
+
 	std::cout << "Width: " << (int) img.width << std::endl;
 	std::cout << "Height: " << (int) img.height << std::endl;
 	std::cout << "Bits per pixel: " << (int) img.bitsPerPixel << std::endl;
@@ -63,16 +71,16 @@ void printImageInfo(gw::tga::TGAImage img) {
 	std::cout << "Origin: ";
 
 	switch (img.origin) {
-	case gw::tga::TGAImageOrigin::BOTTOM_LEFT:
+	case gw::tga::GWTGA_BOTTOM_LEFT:
 		std::cout << "Bottom left";
 		break;
-	case gw::tga::TGAImageOrigin::BOTTOM_RIGHT:
+	case gw::tga::GWTGA_BOTTOM_RIGHT:
 		std::cout << "Bottom right";
 		break;
-	case gw::tga::TGAImageOrigin::TOP_LEFT:
+	case gw::tga::GWTGA_TOP_LEFT:
 		std::cout << "Top left";
 		break;
-	case gw::tga::TGAImageOrigin::TOP_RIGHT:
+	case gw::tga::GWTGA_TOP_RIGHT:
 		std::cout << "Top right";
 		break;
 	}
@@ -81,6 +89,7 @@ void printImageInfo(gw::tga::TGAImage img) {
 }
 
 int main(int argc, char *argv[]) {
+	printImageInfo(gw::tga::LoadTgaFromFile("a.txt"));
 
 	test("Testing 8-bit greyscale image uncompressed...", "mandrill_8.tga", "mandrill_8.tga.test");
 	test("Testing 8-bit greyscale RLE compressed image...", "mandrill_8rle.tga", "mandrill_8rle.tga.test");
