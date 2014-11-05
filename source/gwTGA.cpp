@@ -1,5 +1,4 @@
 #include "gwTGA.h"
-#include <malloc.h> // TODO: do we need alloca?
 
 namespace gw {          
 	namespace tga {
