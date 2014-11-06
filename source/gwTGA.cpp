@@ -1,5 +1,10 @@
 #include "gwTGA.h"
-#include <malloc.h> // TODO: do we need alloca?
+#include <cstring> // memcpy
+
+// Workaround "alloca was not declared" when using gcc 
+#ifndef alloca
+	#define alloca __builtin_alloca
+#endif
 
 namespace gw {          
 	namespace tga {
