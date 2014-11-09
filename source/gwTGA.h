@@ -36,6 +36,12 @@ namespace gw {
 			GWTGA_UNSUPPORTED_PIXEL_DEPTH
 		};
 
+		enum TGAColorType {
+			GWTGA_UNKNOWN = 0,
+			GWTGA_GREYSCALE,
+			GWTGA_RGB
+		};
+
 		class ITGALoaderListener { 
 		public: 
 			virtual char* newTexture(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height) = 0; 
@@ -43,7 +49,7 @@ namespace gw {
 
 		struct TGAImage {
 
-			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(GWTGA_UNDEFINED), error(GWTGA_NONE) { }
+			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(GWTGA_UNDEFINED), error(GWTGA_NONE), colorType(GWTGA_UNKNOWN) { }
 
 			char*			bytes;
 			unsigned int	width;
@@ -52,6 +58,7 @@ namespace gw {
 			unsigned char	attributeBitsPerPixel;
 			TGAImageOrigin	origin;
 			TGAError		error;
+			TGAColorType	colorType;
 
 			//TGAFormat pixelFormat;
 		};

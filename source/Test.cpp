@@ -1,5 +1,51 @@
 #include "gwTGA.h"
 
+
+void printImageInfo(gw::tga::TGAImage img) {
+
+	if (img.error != gw::tga::GWTGA_NONE) {
+		std::cout << "error! Cannot load image" << std::endl;
+		return;
+	}
+
+	std::cout << "Width: " << (int) img.width << std::endl;
+	std::cout << "Height: " << (int) img.height << std::endl;
+	std::cout << "Bits per pixel: " << (int) img.bitsPerPixel << std::endl;
+	std::cout << "Attribute bits per pixel: " << (int) img.attributeBitsPerPixel << std::endl;
+	std::cout << "Origin: ";
+
+	switch (img.origin) {
+	case gw::tga::GWTGA_BOTTOM_LEFT:
+		std::cout << "Bottom left";
+		break;
+	case gw::tga::GWTGA_BOTTOM_RIGHT:
+		std::cout << "Bottom right";
+		break;
+	case gw::tga::GWTGA_TOP_LEFT:
+		std::cout << "Top left";
+		break;
+	case gw::tga::GWTGA_TOP_RIGHT:
+		std::cout << "Top right";
+		break;
+	}
+	
+	std::cout << std::endl;
+
+	std::cout << "Type: ";
+	switch (img.colorType) {
+	case gw::tga::GWTGA_UNKNOWN:
+		std::cout << "Unknown";
+		break;
+	case gw::tga::GWTGA_GREYSCALE:
+		std::cout << "Greyscale";
+		break;
+	case gw::tga::GWTGA_RGB:
+		std::cout << "RGB";
+		break;
+	}
+	std::cout << std::endl;
+}
+
 bool cmpArrays(char* a1, size_t n1, char* a2, size_t n2){
 
 	if (n1 != n2) return false;
@@ -57,39 +103,7 @@ bool test(char* testName, char* tgaFileName, char* testFileName) {
 	return result;
 }
 
-void printImageInfo(gw::tga::TGAImage img) {
-
-	if (img.error != gw::tga::GWTGA_NONE) {
-		std::cout << "error! Cannot load image" << std::endl;
-		return;
-	}
-
-	std::cout << "Width: " << (int) img.width << std::endl;
-	std::cout << "Height: " << (int) img.height << std::endl;
-	std::cout << "Bits per pixel: " << (int) img.bitsPerPixel << std::endl;
-	std::cout << "Attribute bits per pixel: " << (int) img.attributeBitsPerPixel << std::endl;
-	std::cout << "Origin: ";
-
-	switch (img.origin) {
-	case gw::tga::GWTGA_BOTTOM_LEFT:
-		std::cout << "Bottom left";
-		break;
-	case gw::tga::GWTGA_BOTTOM_RIGHT:
-		std::cout << "Bottom right";
-		break;
-	case gw::tga::GWTGA_TOP_LEFT:
-		std::cout << "Top left";
-		break;
-	case gw::tga::GWTGA_TOP_RIGHT:
-		std::cout << "Top right";
-		break;
-	}
-	std::cout << std::endl;
-
-}
-
 int main(int argc, char *argv[]) {
-	printImageInfo(gw::tga::LoadTgaFromFile("a.txt"));
 
 	test("Testing 8-bit greyscale image uncompressed...", "test_images\\mandrill_8.tga", "test_images\\mandrill_8.tga.test");
 	test("Testing 8-bit greyscale RLE compressed image...", "test_images\\mandrill_8rle.tga", "test_images\\mandrill_8rle.tga.test");
@@ -113,7 +127,7 @@ int main(int argc, char *argv[]) {
 
 	std::cout << std::endl;
 
-	printImageInfo(gw::tga::LoadTgaFromFile("mandrill_32.tga"));
+	printImageInfo(gw::tga::LoadTgaFromFile("mandrill_8.tga"));
 
 	std::cout << std::endl;
 	std::cout << "Press any key to end";

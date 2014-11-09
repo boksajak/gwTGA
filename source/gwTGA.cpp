@@ -106,7 +106,20 @@ namespace gw {
 			//	// TODO: Unknown pixel format
 			//	break;
 			//}
-			
+
+			switch (header.ImageType) {
+			case 1:
+			case 2:
+			case 9:
+			case 10:
+				resultImage.colorType = GWTGA_RGB;
+				break;
+			case 3:
+			case 11:
+				resultImage.colorType = GWTGA_GREYSCALE;
+				break;
+			}
+
 			// Read image iD - skip this, we do not use image id now
 			stream.seekg(header.iDLength, std::ios_base::cur);
 
