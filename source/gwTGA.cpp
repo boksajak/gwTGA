@@ -1,11 +1,6 @@
 #include "gwTGA.h"
 #include <cstring> // memcpy
 
-// Workaround "alloca was not declared" when using gcc 
-#ifndef alloca
-	#define alloca __builtin_alloca
-#endif
-
 namespace gw {          
 	namespace tga {
 		
@@ -107,6 +102,12 @@ namespace gw {
 			//	break;
 			//}
 
+			if (resultImage.bitsPerPixel > 16 * 8) {
+				// Too many bits per pixel
+				resultImage.error = GWTGA_UNSUPPORTED_PIXEL_DEPTH;
+				return resultImage;
+			}
+
 			switch (header.ImageType) {
 			case 1:
 			case 2:
@@ -126,16 +127,20 @@ namespace gw {
 			// Read color map
 			char* colorMap = NULL;
 			if (header.colorMapSpec.colorMapLength > 0) {
-				// TODO: Consider getting memory from ITGALoaderListener 
-				size_t size = header.colorMapSpec.colorMapLength * (header.colorMapSpec.colorMapEntrySize / 8);
-				colorMap = new (std::nothrow) char[size];
-				
+
+				colorMap = (*listener)(header.colorMapSpec.colorMapEntrySize, header.colorMapSpec.colorMapLength, 1, GWTGA_COLOR_PALETTE);
+
 				if (!colorMap) {
 					// Could not allocate memory for color map
 					resultImage.error = GWTGA_MALLOC_ERROR;
 					return resultImage;
 				}
 
+				resultImage.colorPaletteBytes = colorMap;
+				resultImage.colorMapLength = header.colorMapSpec.colorMapLength;
+				resultImage.colorPaletteBPP = header.imageSpec.bitsPerPixel;
+
+				size_t size = header.colorMapSpec.colorMapLength * (header.colorMapSpec.colorMapEntrySize / 8);
 				stream.read(colorMap, size);
 
 				if (stream.fail()) {
@@ -158,7 +163,7 @@ namespace gw {
 			size_t imgDataSize = pixelsNumber * bytesPerPixel;
 
 			// Allocate memory for image data
-			resultImage.bytes = listener->newTexture(resultImage.bitsPerPixel, header.imageSpec.width, header.imageSpec.height);
+			resultImage.bytes = (*listener)(resultImage.bitsPerPixel, header.imageSpec.width, header.imageSpec.height, GWTGA_IMAGE_DATA);
 
 			if (!resultImage.bytes) {
 				resultImage.error = GWTGA_MALLOC_ERROR;
@@ -279,7 +284,7 @@ namespace gw {
 				size_t readPixels = 0;
 
 				// buffer for pixel (on stack)
-				char* colorValues = (char*) alloca(bytesPerInputPixel);
+				char colorValues[16]; // max 16 bytes per pixel are supported (4 floats)
 				uint8_t packetHeader;
 				uint8_t repetitionCount;
 

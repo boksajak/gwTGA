@@ -42,14 +42,20 @@ namespace gw {
 			GWTGA_RGB
 		};
 
+		enum TGAMemoryType {
+			GWTGA_IMAGE_DATA,
+			GWTGA_COLOR_PALETTE
+		};
+
 		class ITGALoaderListener { 
 		public: 
-			virtual char* newTexture(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height) = 0; 
+			virtual char* operator()(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height, TGAMemoryType mType) = 0; 
+
 		}; 
 
 		struct TGAImage {
 
-			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(GWTGA_UNDEFINED), error(GWTGA_NONE), colorType(GWTGA_UNKNOWN) { }
+			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(GWTGA_UNDEFINED), error(GWTGA_NONE), colorType(GWTGA_UNKNOWN), colorPaletteBytes(NULL), colorPaletteBPP(0), colorMapLength(0) { }
 
 			char*			bytes;
 			unsigned int	width;
@@ -59,6 +65,9 @@ namespace gw {
 			TGAImageOrigin	origin;
 			TGAError		error;
 			TGAColorType	colorType;
+			char*			colorPaletteBytes;
+			unsigned char	colorPaletteBPP; //< TODO: change value with bitsPerPixel when colorMap is present???
+			unsigned int	colorMapLength;
 
 			//TGAFormat pixelFormat;
 		};
@@ -130,8 +139,11 @@ namespace gw {
 
 			class TGALoaderListener : public ITGALoaderListener {
 			public: 
-				char* newTexture(const unsigned int &bitsPerPixel,const unsigned int &width,  const unsigned int &height) {
-					return new char[(bitsPerPixel / 8) * (height * width)];
+				char* operator()(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height, TGAMemoryType mType) {						if (mType == GWTGA_IMAGE_DATA) {
+						return new char[(bitsPerPixel / 8) * (height * width)];
+					} else {
+						return new char[(bitsPerPixel / 8) * (height * width)];
+					}
 				}
 
 			};
