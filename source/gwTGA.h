@@ -72,10 +72,10 @@ namespace gw {
 			//TGAFormat pixelFormat;
 		};
 
-		TGAImage LoadTgaFromFile(char* fileName);
+		TGAImage LoadTga(char* fileName);
 		TGAImage LoadTga(std::istream &stream);
 
-		TGAImage LoadTgaFromFile(char* fileName, ITGALoaderListener* listener);
+		TGAImage LoadTga(char* fileName, ITGALoaderListener* listener);
 		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener);
 
 		namespace details {

@@ -60,7 +60,7 @@ bool cmpArrays(char* a1, size_t n1, char* a2, size_t n2){
 bool test(char* testName, char* tgaFileName, char* testFileName) {
 
 	// load tga image
-	gw::tga::TGAImage img = gw::tga::LoadTgaFromFile(tgaFileName);
+	gw::tga::TGAImage img = gw::tga::LoadTga(tgaFileName);
 
 	if (img.error != gw::tga::GWTGA_NONE) {
 		std::cout << testName << "error! Cannot load image" << std::endl;
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
 
 	std::cout << std::endl;
 
-	printImageInfo(gw::tga::LoadTgaFromFile("mandrill_8.tga"));
+	printImageInfo(gw::tga::LoadTga("mandrill_8.tga"));
 
 	std::cout << std::endl;
 	std::cout << "Press any key to end";

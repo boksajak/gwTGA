@@ -6,7 +6,13 @@ namespace gw {
 		
 		using namespace details;
 
-		TGAImage LoadTgaFromFile(char* fileName) {
+		TGAImage LoadTga(char* fileName) {
+
+			TGALoaderListener listener;
+			return LoadTga(fileName, &listener);
+		}
+
+		TGAImage LoadTga(char* fileName, ITGALoaderListener* listener) {
 
 			TGAImage result;
 
@@ -18,12 +24,16 @@ namespace gw {
 				return result;
 			}
 
-			TGALoaderListener listener;
-			result = LoadTga(fileStream, &listener);
+			result = LoadTga(fileStream, listener);
 
 			fileStream.close();
 
 			return result;
+		}
+
+		TGAImage LoadTga(std::istream &stream) {
+			TGALoaderListener listener;
+			return LoadTga(stream, &listener);
 		}
 
 		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener) {
