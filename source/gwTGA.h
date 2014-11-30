@@ -34,6 +34,13 @@ namespace gw {
 			GWTGA_UNSUPPORTED_PIXEL_DEPTH
 		};
 
+		enum TGAOptions {
+			GWTGA_OPTIONS_NONE = 0,
+			GWTGA_RETURN_COLOR_MAP = 1,
+			GWTGA_FLIP_VERTICALLY = 2,
+			GWTGA_FLPI_HORIZONTALLY = 4
+		};
+
 		enum TGAColorType {
 			GWTGA_UNKNOWN = 0,
 			GWTGA_GREYSCALE,
@@ -61,6 +68,8 @@ namespace gw {
 			unsigned char	bitsPerPixel;
 			unsigned char	attributeBitsPerPixel;
 			TGAImageOrigin	origin;
+			unsigned int	xOrigin;
+			unsigned int	yOrigin;
 			TGAError		error;
 			TGAColorType	colorType;
 			char*			colorPaletteBytes;
@@ -76,8 +85,14 @@ namespace gw {
 		TGAImage LoadTga(char* fileName, ITGALoaderListener* listener);
 		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener);
 
-		TGAError SaveTga(char* fileName, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin);
-		TGAError SaveTga(std::ostream &stream, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin);
+		TGAImage LoadTga(char* fileName, TGAOptions options);
+		TGAImage LoadTga(std::istream &stream, TGAOptions options);
+
+		TGAImage LoadTga(char* fileName, ITGALoaderListener* listener, TGAOptions options);
+		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener, TGAOptions options);
+
+		TGAError SaveTga(char* fileName, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin, unsigned int xOrigin, unsigned int yOrigin);
+		TGAError SaveTga(std::ostream &stream, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin, unsigned int xOrigin, unsigned int yOrigin);
 
 		namespace details {
 			struct TGAColorMapSpec {
@@ -140,13 +155,8 @@ namespace gw {
 
 			class TGALoaderListener : public ITGALoaderListener {
 			public: 
-				char* operator()(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height, TGAMemoryType mType) {						if (mType == GWTGA_IMAGE_DATA) {
-						return new char[(bitsPerPixel / 8) * (height * width)];
-					} else {
-						return new char[(bitsPerPixel / 8) * (height * width)];
-					}
-				}
-
+				char* operator()(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height, TGAMemoryType mType);
+				void release(char* bytes);
 			};
 
 			typedef void(*fetchPixelFunc)(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);

@@ -8,13 +8,32 @@ namespace gw {
 		using namespace details;
 
 		TGAImage LoadTga(char* fileName) {
+			return LoadTga(fileName, GWTGA_OPTIONS_NONE);
+		}
 
+		TGAImage LoadTga(char* fileName, TGAOptions options) {
 			TGALoaderListener listener;
-			return LoadTga(fileName, &listener);
+			TGAImage resultImage = LoadTga(fileName, &listener);
+
+			if (options & GWTGA_RETURN_COLOR_MAP == 0) {
+				// Deallocate memory for color map allocated internally (if user does not request returning of color map)
+				listener.release(resultImage.colorPaletteBytes);
+
+				// TODO: Test returning of color map, create new object for holding color map + bit stating "color map present"
+				resultImage.colorPaletteBytes = NULL;
+				resultImage.colorMapLength = 0;
+				resultImage.colorPaletteBPP = 0;
+			}
+
+			return resultImage;
 		}
 
 		TGAImage LoadTga(char* fileName, ITGALoaderListener* listener) {
+			return LoadTga(fileName, listener, GWTGA_OPTIONS_NONE);
+		}
 
+		TGAImage LoadTga(char* fileName, ITGALoaderListener* listener, TGAOptions options) 
+		{
 			TGAImage result;
 
 			std::ifstream fileStream;
@@ -25,19 +44,36 @@ namespace gw {
 				return result;
 			}
 
-			result = LoadTga(fileStream, listener);
+			result = LoadTga(fileStream, listener, options);
 
 			fileStream.close();
 
 			return result;
-		}
+	}
 
 		TGAImage LoadTga(std::istream &stream) {
-			TGALoaderListener listener;
-			return LoadTga(stream, &listener);
+			return LoadTga(stream, GWTGA_OPTIONS_NONE);
 		}
 
-		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener) {
+		TGAImage LoadTga(std::istream &stream, TGAOptions options) {
+			TGALoaderListener listener;
+			TGAImage resultImage = LoadTga(stream, &listener, options);
+
+			// TODO: Remove this code duplicity
+			if (options & GWTGA_RETURN_COLOR_MAP == 0) {
+				// Deallocate memory for color map allocated internally (if user does not request returning of color map)
+				listener.release(resultImage.colorPaletteBytes);
+
+				// TODO: Test returning of color map, create new object for holding color map + bit stating "color map present"
+				resultImage.colorPaletteBytes = NULL;
+				resultImage.colorMapLength = 0;
+				resultImage.colorPaletteBPP = 0;
+			}
+
+			return resultImage;
+		}
+
+		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener, TGAOptions options) {
 			// TODO: TGA is little endian. Make sure reading from stream is little endian
 
 			TGAImage resultImage;
@@ -66,6 +102,8 @@ namespace gw {
 
 			resultImage.width = header.imageSpec.width;
 			resultImage.height = header.imageSpec.height;
+			resultImage.xOrigin = header.imageSpec.xOrigin;
+			resultImage.yOrigin = header.imageSpec.yOrigin;
 
 			if (header.colorMapSpec.colorMapLength == 0) {
 				resultImage.bitsPerPixel = header.imageSpec.bitsPerPixel;
@@ -230,13 +268,13 @@ namespace gw {
 				}
 			}
 
-			// TODO: if we got memory from user, do not delete it here
-			if (colorMap != NULL) delete[] colorMap;
-
 			return resultImage;
 		}
 
-		TGAError SaveTga(char* fileName, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin) {
+
+
+
+		TGAError SaveTga(char* fileName, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin, unsigned int xOrigin, unsigned int yOrigin) {
 
 			std::ofstream fileStream;
 			fileStream.open(fileName, std::ofstream::out | std::ofstream::app);
@@ -245,17 +283,17 @@ namespace gw {
 				return GWTGA_CANNOT_OPEN_FILE; 
 			}
 
-			SaveTga(fileStream, width, height, bitsPerPixel, pixels, colorType, origin);
+			SaveTga(fileStream, width, height, bitsPerPixel, pixels, colorType, origin, xOrigin, yOrigin);
 
 			fileStream.close();
 
 			return GWTGA_NONE;
 		}
 
-		TGAError SaveTga(std::ostream &stream, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin) {
+		TGAError SaveTga(std::ostream &stream, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin, unsigned int xOrigin, unsigned int yOrigin) {
 
-			// Assert int and width is 16-bit unsigned int
-			if (width > 0xFFFF || height > 0xFFFF) {
+			// Assert height and width and origin coords is 16-bit unsigned int
+			if (width > 0xFFFF || height > 0xFFFF || xOrigin > 0xFFFF || yOrigin > 0xFFFF) {
 				// Invalid image dimensions
 				return GWTGA_INVALID_DATA;
 			}
@@ -279,13 +317,13 @@ namespace gw {
 				return GWTGA_INVALID_DATA;
 			}
 
+			// TODO: Support color map
 			header.colorMapSpec.colorMapEntrySize = 0;
 			header.colorMapSpec.colorMapLength = 0;
 			header.colorMapSpec.firstEntryIndex = 0;
 
-			// TODO: Suppoer xOrigin and yOrigin
-			header.imageSpec.xOrigin = 0;
-			header.imageSpec.yOrigin = 0;
+			header.imageSpec.xOrigin = xOrigin;
+			header.imageSpec.yOrigin = yOrigin;
 			header.imageSpec.width = width;
 			header.imageSpec.height = height;
 			header.imageSpec.bitsPerPixel = bitsPerPixel;
@@ -331,6 +369,18 @@ namespace gw {
 		}
 
 		namespace details {
+
+			char* TGALoaderListener::operator()(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height, TGAMemoryType mType) {						
+				if (mType == GWTGA_IMAGE_DATA) {
+					return new char[(bitsPerPixel / 8) * (height * width)];
+				} else {
+					return new char[(bitsPerPixel / 8) * (height * width)];
+				}
+			}
+
+			void TGALoaderListener::release(char* bytes) {
+				if (bytes != NULL) delete[] bytes;
+			}
 
 			void fetchPixelUncompressed(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
 				memcpy(target, input, bytesPerInputPixel);

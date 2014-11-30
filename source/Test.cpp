@@ -10,6 +10,8 @@ void printImageInfo(gw::tga::TGAImage img) {
 
 	std::cout << "Width: " << (int) img.width << std::endl;
 	std::cout << "Height: " << (int) img.height << std::endl;
+	std::cout << "X-Origin: " << (int) img.xOrigin << std::endl;
+	std::cout << "Y-Origin: " << (int) img.yOrigin << std::endl;
 	std::cout << "Bits per pixel: " << (int) img.bitsPerPixel << std::endl;
 	std::cout << "Attribute bits per pixel: " << (int) img.attributeBitsPerPixel << std::endl;
 	std::cout << "Origin: ";
