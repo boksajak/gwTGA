@@ -174,9 +174,9 @@ namespace gw {
 					return resultImage;
 				}
 
-				resultImage.colorPaletteBytes = colorMap;
-				resultImage.colorMapLength = header.colorMapSpec.colorMapLength;
-				resultImage.colorPaletteBPP = header.imageSpec.bitsPerPixel;
+				resultImage.colorMap.bytes = colorMap;
+				resultImage.colorMap.length = header.colorMapSpec.colorMapLength;
+				resultImage.colorMap.bitsPerPixel = header.imageSpec.bitsPerPixel;
 
 				size_t size = header.colorMapSpec.colorMapLength * (header.colorMapSpec.colorMapEntrySize / 8);
 				stream.read(colorMap, size);
@@ -477,13 +477,12 @@ namespace gw {
 			}
 
 			void cleanupColorMap(TGALoaderListener* listener, TGAImage &image) {
-				if (image.colorPaletteBytes != NULL) {
-					listener->release(image.colorPaletteBytes);
+				if (image.colorMap.bytes != NULL) {
+					listener->release(image.colorMap.bytes);
 
-					// TODO: Test returning of color map, create new object for holding color map + bit stating "color map present"
-					image.colorPaletteBytes = NULL;
-					image.colorMapLength = 0;
-					image.colorPaletteBPP = 0;
+					image.colorMap.bitsPerPixel = 0;
+					image.colorMap.length = 0;
+					image.colorMap.bytes = NULL;
 				}
 			}
 

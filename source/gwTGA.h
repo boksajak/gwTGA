@@ -58,25 +58,38 @@ namespace gw {
 
 		}; 
 
+		struct TGAColorMap {
+			char* bytes;
+			unsigned int length;
+			unsigned char bitsPerPixel;
+		};
+
 		struct TGAImage {
 
-			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(GWTGA_UNDEFINED), error(GWTGA_NONE), colorType(GWTGA_UNKNOWN), colorPaletteBytes(NULL), colorPaletteBPP(0), colorMapLength(0) { }
+			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(GWTGA_UNDEFINED), error(GWTGA_NONE), colorType(GWTGA_UNKNOWN) {
+				colorMap.bitsPerPixel = 0;
+				colorMap.length = 0;
+				colorMap.bytes = NULL;
+			}
 
 			char*			bytes;
+			
 			unsigned int	width;
 			unsigned int	height;
 			unsigned char	bitsPerPixel;
+
 			unsigned char	attributeBitsPerPixel;
+			
 			TGAImageOrigin	origin;
 			unsigned int	xOrigin;
 			unsigned int	yOrigin;
+
 			TGAError		error;
 			TGAColorType	colorType;
-			char*			colorPaletteBytes;
-			unsigned char	colorPaletteBPP; //< TODO: change value with bitsPerPixel when colorMap is present???
-			unsigned int	colorMapLength;
 
-			//TGAFormat pixelFormat;
+			TGAColorMap		colorMap;
+
+			bool hasError() { return error != GWTGA_NONE; }
 		};
 
 		TGAImage LoadTga(char* fileName);
