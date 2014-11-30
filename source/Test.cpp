@@ -1,5 +1,5 @@
 #include "gwTGA.h"
-
+#include <fstream>  
 
 void printImageInfo(gw::tga::TGAImage img) {
 

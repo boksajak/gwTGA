@@ -1,5 +1,6 @@
 #include "gwTGA.h"
 #include <cstring> // memcpy
+#include <fstream>  
 
 namespace gw {          
 	namespace tga {
@@ -233,6 +234,100 @@ namespace gw {
 			if (colorMap != NULL) delete[] colorMap;
 
 			return resultImage;
+		}
+
+		TGAError SaveTga(char* fileName, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin) {
+
+			std::ofstream fileStream;
+			fileStream.open(fileName, std::ofstream::out | std::ofstream::app);
+
+			if (fileStream.fail()) {
+				return GWTGA_CANNOT_OPEN_FILE; 
+			}
+
+			SaveTga(fileStream, width, height, bitsPerPixel, pixels, colorType, origin);
+
+			fileStream.close();
+
+			return GWTGA_NONE;
+		}
+
+		TGAError SaveTga(std::ostream &stream, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin) {
+
+			// Assert int and width is 16-bit unsigned int
+			if (width > 0xFFFF || height > 0xFFFF) {
+				// Invalid image dimensions
+				return GWTGA_INVALID_DATA;
+			}
+
+			if ((bitsPerPixel & 0x07) != 0) {
+				// Bits per pixel has to be divisible by 8
+				return GWTGA_UNSUPPORTED_PIXEL_DEPTH;
+			}
+
+			// Write header
+			TGAHeader header;
+			header.iDLength = 0;
+			header.colorMapType = 0; //< No color map
+
+			if (colorType == GWTGA_RGB) {
+				header.ImageType = 2; //< Uncompressed RGB
+			} else if (colorType == GWTGA_GREYSCALE) {
+				header.ImageType = 3; //< Uncompressed greyscale
+			} else {
+				// Unknown color type provided
+				return GWTGA_INVALID_DATA;
+			}
+
+			header.colorMapSpec.colorMapEntrySize = 0;
+			header.colorMapSpec.colorMapLength = 0;
+			header.colorMapSpec.firstEntryIndex = 0;
+
+			// TODO: Suppoer xOrigin and yOrigin
+			header.imageSpec.xOrigin = 0;
+			header.imageSpec.yOrigin = 0;
+			header.imageSpec.width = width;
+			header.imageSpec.height = height;
+			header.imageSpec.bitsPerPixel = bitsPerPixel;
+
+			switch (origin) {
+			case GWTGA_BOTTOM_LEFT:
+				header.imageSpec.imgDescriptor = 0x00;
+				break;
+			case GWTGA_BOTTOM_RIGHT:
+				header.imageSpec.imgDescriptor = 0x10;
+				break;
+			case GWTGA_TOP_LEFT:
+				header.imageSpec.imgDescriptor = 0x20;
+				break;
+			case GWTGA_TOP_RIGHT:
+				header.imageSpec.imgDescriptor = 0x30;
+				break;
+			default:
+				// Unknown origin provided
+				return GWTGA_INVALID_DATA;
+			}
+
+			stream.write((char*)&header.iDLength, sizeof(header.iDLength));
+			stream.write((char*)&header.colorMapType, sizeof(header.colorMapType));
+			stream.write((char*)&header.ImageType, sizeof(header.ImageType));
+			stream.write((char*)&header.colorMapSpec.firstEntryIndex, sizeof(header.colorMapSpec.firstEntryIndex));
+			stream.write((char*)&header.colorMapSpec.colorMapLength, sizeof(header.colorMapSpec.colorMapLength));
+			stream.write((char*)&header.colorMapSpec.colorMapEntrySize, sizeof(header.colorMapSpec.colorMapEntrySize));
+			stream.write((char*)&header.imageSpec.xOrigin, sizeof(header.imageSpec.xOrigin));
+			stream.write((char*)&header.imageSpec.yOrigin, sizeof(header.imageSpec.yOrigin));
+			stream.write((char*)&header.imageSpec.width, sizeof(header.imageSpec.width));
+			stream.write((char*)&header.imageSpec.height, sizeof(header.imageSpec.height));
+			stream.write((char*)&header.imageSpec.bitsPerPixel, sizeof(header.imageSpec.bitsPerPixel));
+			stream.write((char*)&header.imageSpec.imgDescriptor, sizeof(header.imageSpec.imgDescriptor));
+
+			stream.write(pixels, width * height * (bitsPerPixel >> 3));
+
+			if (stream.fail()) {
+				return GWTGA_IO_ERROR;
+			}
+
+			return GWTGA_NONE;
 		}
 
 		namespace details {

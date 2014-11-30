@@ -11,9 +11,7 @@
 //----------------------------------------------------------------------------------------
 #pragma once
 
-#include <stdio.h>
 #include <iostream>
-#include <fstream>  
 #include <stdint.h>
 
 namespace gw {          
@@ -77,6 +75,9 @@ namespace gw {
 
 		TGAImage LoadTga(char* fileName, ITGALoaderListener* listener);
 		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener);
+
+		TGAError SaveTga(char* fileName, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin);
+		TGAError SaveTga(std::ostream &stream, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin);
 
 		namespace details {
 			struct TGAColorMapSpec {
