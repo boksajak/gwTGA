@@ -171,6 +171,7 @@ namespace gw {
 			template<fetchPixelFunc, fetchPixelsFunc>
 			bool decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel);
 
+			void cleanupColorMap(TGALoaderListener* listener, TGAImage &image);
 		}
 	} 
 }

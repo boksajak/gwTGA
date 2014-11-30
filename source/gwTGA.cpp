@@ -17,12 +17,7 @@ namespace gw {
 
 			if (options & GWTGA_RETURN_COLOR_MAP == 0) {
 				// Deallocate memory for color map allocated internally (if user does not request returning of color map)
-				listener.release(resultImage.colorPaletteBytes);
-
-				// TODO: Test returning of color map, create new object for holding color map + bit stating "color map present"
-				resultImage.colorPaletteBytes = NULL;
-				resultImage.colorMapLength = 0;
-				resultImage.colorPaletteBPP = 0;
+				cleanupColorMap(&listener, resultImage);
 			}
 
 			return resultImage;
@@ -59,15 +54,9 @@ namespace gw {
 			TGALoaderListener listener;
 			TGAImage resultImage = LoadTga(stream, &listener, options);
 
-			// TODO: Remove this code duplicity
 			if (options & GWTGA_RETURN_COLOR_MAP == 0) {
 				// Deallocate memory for color map allocated internally (if user does not request returning of color map)
-				listener.release(resultImage.colorPaletteBytes);
-
-				// TODO: Test returning of color map, create new object for holding color map + bit stating "color map present"
-				resultImage.colorPaletteBytes = NULL;
-				resultImage.colorMapLength = 0;
-				resultImage.colorPaletteBPP = 0;
+				cleanupColorMap(&listener, resultImage);
 			}
 
 			return resultImage;
@@ -485,6 +474,17 @@ namespace gw {
 				}
 
 				return true;
+			}
+
+			void cleanupColorMap(TGALoaderListener* listener, TGAImage &image) {
+				if (image.colorPaletteBytes != NULL) {
+					listener->release(image.colorPaletteBytes);
+
+					// TODO: Test returning of color map, create new object for holding color map + bit stating "color map present"
+					image.colorPaletteBytes = NULL;
+					image.colorMapLength = 0;
+					image.colorPaletteBPP = 0;
+				}
 			}
 
 		}
