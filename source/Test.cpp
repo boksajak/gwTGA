@@ -3,7 +3,7 @@
 
 void printImageInfo(gw::tga::TGAImage img) {
 
-	if (img.error != gw::tga::GWTGA_NONE) {
+	if (img.hasError()) {
 		std::cout << "error! Cannot load image" << std::endl;
 		return;
 	}
@@ -129,7 +129,13 @@ int main(int argc, char *argv[]) {
 
 	std::cout << std::endl;
 
-	printImageInfo(gw::tga::LoadTga("mandrill_8.tga"));
+	printImageInfo(gw::tga::LoadTga("test_images\\mandrill_8.tga"));
+
+
+	gw::tga::TGAImage img = gw::tga::LoadTga("test_images\\mandrill_8.tga");
+	if (gw::tga::SaveTga("test.tga", img) != gw::tga::GWTGA_NONE) {
+		std::cout << "Error while saving TGA" << std::endl;
+	}
 
 	std::cout << std::endl;
 	std::cout << "Press any key to end";

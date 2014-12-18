@@ -89,8 +89,13 @@ namespace gw {
 
 			TGAColorMap		colorMap;
 
-			bool hasError() { return error != GWTGA_NONE; }
+			bool hasError() const { return error != GWTGA_NONE; }
+			bool hasColorMap() const { return colorMap.bytes != NULL && colorMap.length != 0 && colorMap.bitsPerPixel != 0; }
 		};
+
+		// -------------------------------------------------------------------------------------
+		//  Load overloads
+		// -------------------------------------------------------------------------------------
 
 		TGAImage LoadTga(char* fileName);
 		TGAImage LoadTga(std::istream &stream);
@@ -104,8 +109,15 @@ namespace gw {
 		TGAImage LoadTga(char* fileName, ITGALoaderListener* listener, TGAOptions options);
 		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener, TGAOptions options);
 
+		// -------------------------------------------------------------------------------------
+		//  Save overloads
+		// -------------------------------------------------------------------------------------
+
 		TGAError SaveTga(char* fileName, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin, unsigned int xOrigin, unsigned int yOrigin);
 		TGAError SaveTga(std::ostream &stream, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin, unsigned int xOrigin, unsigned int yOrigin);
+
+		TGAError SaveTga(char* fileName, const TGAImage &image);
+		TGAError SaveTga(std::ostream &stream, const TGAImage &image);
 
 		namespace details {
 			struct TGAColorMapSpec {
