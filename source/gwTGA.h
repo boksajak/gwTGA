@@ -49,7 +49,8 @@ namespace gw {
 
 		enum TGAMemoryType {
 			GWTGA_IMAGE_DATA,
-			GWTGA_COLOR_PALETTE
+			GWTGA_COLOR_PALETTE,
+			GWTGA_COLOR_PALETTE_TEMPORARY //< Used only to decode image, can be thrown away after loading the image
 		};
 
 		class ITGALoaderListener { 
@@ -182,6 +183,9 @@ namespace gw {
 			public: 
 				char* operator()(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height, TGAMemoryType mType);
 				void release(char* bytes);
+
+			private:
+				char tempMemory[768];
 			};
 
 			typedef void(*fetchPixelFunc)(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);

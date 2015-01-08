@@ -166,7 +166,10 @@ namespace gw {
 			char* colorMap = NULL;
 			if (header.colorMapSpec.colorMapLength > 0) {
 
-				colorMap = (*listener)(header.colorMapSpec.colorMapEntrySize, header.colorMapSpec.colorMapLength, 1, GWTGA_COLOR_PALETTE);
+				// Pick temporary memory (possibly from stack or preallocated) when we dont need color palette after loading the image
+				TGAMemoryType colorMapType = (options & GWTGA_RETURN_COLOR_MAP) ? GWTGA_COLOR_PALETTE : GWTGA_COLOR_PALETTE_TEMPORARY;
+
+				colorMap = (*listener)(header.colorMapSpec.colorMapEntrySize, header.colorMapSpec.colorMapLength, 1, colorMapType);
 
 				if (!colorMap) {
 					// Could not allocate memory for color map
@@ -388,14 +391,17 @@ namespace gw {
 		namespace details {
 
 			char* TGALoaderListener::operator()(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height, TGAMemoryType mType) {						
-				if (mType == GWTGA_IMAGE_DATA) {
-					return new char[(bitsPerPixel / 8) * (height * width)];
+				
+				if (mType == GWTGA_COLOR_PALETTE_TEMPORARY && width * height * (bitsPerPixel / 8) <= 768) {
+					return tempMemory;
 				} else {
+					// GWTGA_IMAGE_DATA or GWTGA_COLOR_PALETTE or large temporary color map
 					return new char[(bitsPerPixel / 8) * (height * width)];
-				}
+				} 
 			}
 
 			void TGALoaderListener::release(char* bytes) {
+				if (bytes == tempMemory) return;
 				if (bytes != NULL) delete[] bytes;
 			}
 
