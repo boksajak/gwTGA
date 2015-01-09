@@ -60,6 +60,9 @@ namespace gw {
 		}; 
 
 		struct TGAColorMap {
+
+			TGAColorMap() : bytes(NULL), length(0), bitsPerPixel(0) {}
+
 			char* bytes;
 			unsigned int length;
 			unsigned char bitsPerPixel;
@@ -67,12 +70,7 @@ namespace gw {
 
 		struct TGAImage {
 
-			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(GWTGA_UNDEFINED), error(GWTGA_NONE), colorType(GWTGA_UNKNOWN) {
-				// TODO - Initialize in TGAColorMap constructor??
-				colorMap.bitsPerPixel = 0;
-				colorMap.length = 0;
-				colorMap.bytes = NULL;
-			}
+			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(GWTGA_UNDEFINED), error(GWTGA_NONE), colorType(GWTGA_UNKNOWN) {}
 
 			char*			bytes;
 			
