@@ -12,15 +12,8 @@ namespace gw {
 		}
 
 		TGAImage LoadTga(char* fileName, TGAOptions options) {
-			TGALoaderListener listener;
-			TGAImage resultImage = LoadTga(fileName, &listener);
-
-			if ((options & GWTGA_RETURN_COLOR_MAP) == 0) {
-				// Deallocate memory for color map allocated internally (if user does not request returning of color map)
-				cleanupColorMap(&listener, resultImage);
-			}
-
-			return resultImage;
+			TGALoaderListener<> listener(options & GWTGA_RETURN_COLOR_MAP);
+			return LoadTga(fileName, &listener);
 		}
 
 		TGAImage LoadTga(char* fileName, ITGALoaderListener* listener) {
@@ -51,15 +44,8 @@ namespace gw {
 		}
 
 		TGAImage LoadTga(std::istream &stream, TGAOptions options) {
-			TGALoaderListener listener;
-			TGAImage resultImage = LoadTga(stream, &listener, options);
-
-			if ((options & GWTGA_RETURN_COLOR_MAP) == 0) {
-				// Deallocate memory for color map allocated internally (if user does not request returning of color map)
-				cleanupColorMap(&listener, resultImage);
-			}
-
-			return resultImage;
+			TGALoaderListener<> listener(options & GWTGA_RETURN_COLOR_MAP);
+			return LoadTga(stream, &listener, options);
 		}
 
 		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener, TGAOptions options) {
@@ -177,9 +163,11 @@ namespace gw {
 					return resultImage;
 				}
 
-				resultImage.colorMap.bytes = colorMap;
-				resultImage.colorMap.length = header.colorMapSpec.colorMapLength;
-				resultImage.colorMap.bitsPerPixel = header.imageSpec.bitsPerPixel;
+				if (options & GWTGA_RETURN_COLOR_MAP) {
+					resultImage.colorMap.bytes = colorMap;
+					resultImage.colorMap.length = header.colorMapSpec.colorMapLength;
+					resultImage.colorMap.bitsPerPixel = header.imageSpec.bitsPerPixel;
+				}
 
 				size_t size = header.colorMapSpec.colorMapLength * (header.colorMapSpec.colorMapEntrySize / 8);
 				stream.read(colorMap, size);
@@ -390,19 +378,31 @@ namespace gw {
 
 		namespace details {
 
-			char* TGALoaderListener::operator()(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height, TGAMemoryType mType) {						
+			template<size_t tempMemorySize>
+			char* TGALoaderListener<tempMemorySize>::operator()(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height, TGAMemoryType mType) {						
 				
-				if (mType == GWTGA_COLOR_PALETTE_TEMPORARY && width * height * (bitsPerPixel / 8) <= 768) {
+				if (mType == GWTGA_COLOR_PALETTE_TEMPORARY && width * height * (bitsPerPixel / 8) <= tempMemorySize) {
 					return tempMemory;
-				} else {
-					// GWTGA_IMAGE_DATA or GWTGA_COLOR_PALETTE or large temporary color map
+				} else if (mType == GWTGA_IMAGE_DATA) {
 					return new char[(bitsPerPixel / 8) * (height * width)];
-				} 
+				} else {
+					colorMapMemory = new char[(bitsPerPixel / 8) * (height * width)];
+					return colorMapMemory;
+				}
 			}
 
-			void TGALoaderListener::release(char* bytes) {
-				if (bytes == tempMemory) return;
-				if (bytes != NULL) delete[] bytes;
+			template<size_t tempMemorySize>
+			TGALoaderListener<tempMemorySize>::TGALoaderListener(bool persistentColorMapMemory) {
+				this->persistentColorMapMemory = persistentColorMapMemory;
+				this->colorMapMemory = NULL;
+			}
+
+			template<size_t tempMemorySize>
+			TGALoaderListener<tempMemorySize>::~TGALoaderListener() {
+				if (!persistentColorMapMemory && colorMapMemory != NULL) {
+					delete[] colorMapMemory;
+					colorMapMemory = NULL;
+				}
 			}
 
 			void fetchPixelUncompressed(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
@@ -509,17 +509,6 @@ namespace gw {
 
 				return true;
 			}
-
-			void cleanupColorMap(TGALoaderListener* listener, TGAImage &image) {
-				if (image.colorMap.bytes != NULL) {
-					listener->release(image.colorMap.bytes);
-
-					image.colorMap.bitsPerPixel = 0;
-					image.colorMap.length = 0;
-					image.colorMap.bytes = NULL;
-				}
-			}
-
 		}
 	} 
 }

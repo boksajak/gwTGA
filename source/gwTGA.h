@@ -55,8 +55,8 @@ namespace gw {
 
 		class ITGALoaderListener { 
 		public: 
+			virtual ~ITGALoaderListener() {}
 			virtual char* operator()(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height, TGAMemoryType mType) = 0; 
-
 		}; 
 
 		struct TGAColorMap {
@@ -68,6 +68,7 @@ namespace gw {
 		struct TGAImage {
 
 			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(GWTGA_UNDEFINED), error(GWTGA_NONE), colorType(GWTGA_UNKNOWN) {
+				// TODO - Initialize in TGAColorMap constructor??
 				colorMap.bitsPerPixel = 0;
 				colorMap.length = 0;
 				colorMap.bytes = NULL;
@@ -179,13 +180,17 @@ namespace gw {
 			//	BGR_F96       //< 1 32-bit float per color channel (BGR)
 			//};
 
+			template<size_t tempMemorySize = 768>
 			class TGALoaderListener : public ITGALoaderListener {
 			public: 
+				TGALoaderListener(bool persistentColorMapMemory);
+				~TGALoaderListener();
 				char* operator()(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height, TGAMemoryType mType);
-				void release(char* bytes);
 
 			private:
-				char tempMemory[768];
+				char tempMemory[tempMemorySize];
+				char* colorMapMemory;
+				bool persistentColorMapMemory;
 			};
 
 			typedef void(*fetchPixelFunc)(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);
@@ -200,7 +205,6 @@ namespace gw {
 			template<fetchPixelFunc, fetchPixelsFunc>
 			bool decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel);
 
-			void cleanupColorMap(TGALoaderListener* listener, TGAImage &image);
 		}
 	} 
 }
