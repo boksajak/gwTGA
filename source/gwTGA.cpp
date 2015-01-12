@@ -255,8 +255,15 @@ namespace gw {
 		}
 		
 
-
 		TGAError SaveTga(char* fileName, const TGAImage &image) {
+			return SaveTga(fileName, image, GWTGA_OPTIONS_NONE);
+		}
+
+		TGAError SaveTga(std::ostream &stream, const TGAImage &image) {
+			return SaveTga(stream, image, GWTGA_OPTIONS_NONE);
+		}
+
+		TGAError SaveTga(char* fileName, const TGAImage &image, TGAOptions options) {
 
 			std::ofstream fileStream;
 			fileStream.open(fileName, std::ofstream::out | std::ofstream::binary);
@@ -265,14 +272,14 @@ namespace gw {
 				return GWTGA_CANNOT_OPEN_FILE; 
 			}
 
-			TGAError err = SaveTga(fileStream, image);
+			TGAError err = SaveTga(fileStream, image, options);
 
 			fileStream.close();
 
 			return err;
 		}
 
-		TGAError SaveTga(std::ostream &stream, const TGAImage &image) {
+		TGAError SaveTga(std::ostream &stream, const TGAImage &image, TGAOptions options) {
 
 			if (image.hasError()) {
 				// Input image is in error state
@@ -281,6 +288,12 @@ namespace gw {
 
 			// Assert height and width and origin coords is 16-bit unsigned int
 			if (image.width > 0xFFFF || image.height > 0xFFFF || image.xOrigin > 0xFFFF || image.yOrigin > 0xFFFF) {
+				// Invalid image dimensions
+				return GWTGA_INVALID_DATA;
+			}
+
+			// Assert height and width are non-null
+			if (image.width == 0 || image.height == 0) {
 				// Invalid image dimensions
 				return GWTGA_INVALID_DATA;
 			}
@@ -367,7 +380,22 @@ namespace gw {
 			}
 
 			// Write pixel data
-			stream.write(image.bytes, image.width * image.height * (image.bitsPerPixel / 8));
+			if (options & GWTGA_FLIP_VERTICALLY) {
+				// PROCESSING - Vertical Flip
+				unsigned int stride = image.width * (image.bitsPerPixel / 8);
+
+				// write rows in reverse
+				unsigned int offset = image.height * stride;
+
+				do {
+					offset -= stride;
+					stream.write(image.bytes + offset, stride);
+				} while (offset != 0);
+
+			} else {
+				// NO PROCESSING
+				stream.write(image.bytes, image.width * image.height * (image.bitsPerPixel / 8));
+			}
 
 			if (stream.fail()) {
 				return GWTGA_IO_ERROR;

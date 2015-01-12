@@ -38,7 +38,7 @@ namespace gw {
 			GWTGA_OPTIONS_NONE = 0,
 			GWTGA_RETURN_COLOR_MAP = 1,
 			GWTGA_FLIP_VERTICALLY = 2,
-			GWTGA_FLPI_HORIZONTALLY = 4
+			GWTGA_FLIP_HORIZONTALLY = 4
 		};
 
 		enum TGAColorType {
@@ -115,6 +115,9 @@ namespace gw {
 
 		TGAError SaveTga(char* fileName, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin, unsigned int xOrigin, unsigned int yOrigin);
 		TGAError SaveTga(std::ostream &stream, unsigned int width, unsigned int height, unsigned char bitsPerPixel, char* pixels, TGAColorType colorType, TGAImageOrigin origin, unsigned int xOrigin, unsigned int yOrigin);
+
+		TGAError SaveTga(char* fileName, const TGAImage &image, TGAOptions options);
+		TGAError SaveTga(std::ostream &stream, const TGAImage &image, TGAOptions options);
 
 		TGAError SaveTga(char* fileName, const TGAImage &image);
 		TGAError SaveTga(std::ostream &stream, const TGAImage &image);
