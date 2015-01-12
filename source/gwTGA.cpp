@@ -381,24 +381,38 @@ namespace gw {
 
 			// Write pixel data
 			if (options & GWTGA_FLIP_VERTICALLY) {
-				// PROCESSING - Vertical Flip
-				unsigned int stride = image.width * (image.bitsPerPixel / 8);
+				if (!(options & GWTGA_FLIP_HORIZONTALLY)) {
+					// PROCESSING - Vertical Flip
+					unsigned int stride = image.width * (image.bitsPerPixel / 8);
 
-				// write rows in reverse
-				unsigned int offset = image.height * stride;
+					// write rows in reverse
+					unsigned int offset = image.height * stride;
 
-				do {
-					offset -= stride;
-					stream.write(image.bytes + offset, stride);
-				} while (offset != 0);
+					do {
+						offset -= stride;
+						stream.write(image.bytes + offset, stride);
+					} while (offset != 0);
+				} else {
 
+					// PROCESSING - Vertical and horizontal Flip
+					unsigned int strideX = image.bitsPerPixel / 8;
+					unsigned int strideY = image.width * (image.bitsPerPixel / 8);
+
+					// TODO: signed/unsigned comparison
+					for (int y = (image.height - 1) * strideY; y >= 0; y-=strideY) {
+						for (int x = (image.width - 1) * strideX; x >= 0; x-= strideX) {
+							stream.write(image.bytes + x + y, strideX);
+						}
+					}
+				}
 			} else if (options & GWTGA_FLIP_HORIZONTALLY) {
 				// PROCESSING - Horizontal Flip
-				unsigned int strideX = (image.bitsPerPixel / 8);
-
-				for (unsigned int y = 0; y < image.height; y+= 1) {
-					for (int x = (image.width - 1) * (image.bitsPerPixel / 8); x >= 0; x-= strideX) {
-						stream.write(image.bytes + (x + (image.height * y * (image.bitsPerPixel / 8))), strideX);
+				unsigned int strideX = image.bitsPerPixel / 8;
+				unsigned int strideY = image.width * (image.bitsPerPixel / 8);
+				// TODO: signed/unsigned comparison
+				for (int y = 0; y < image.height * strideY; y+=strideY) {
+					for (int x = (image.width - 1) * strideX; x >= 0; x-= strideX) {
+						stream.write(image.bytes + x + y, strideX);
 					}
 				}
 			} else {
