@@ -392,6 +392,15 @@ namespace gw {
 					stream.write(image.bytes + offset, stride);
 				} while (offset != 0);
 
+			} else if (options & GWTGA_FLIP_HORIZONTALLY) {
+				// PROCESSING - Horizontal Flip
+				unsigned int strideX = (image.bitsPerPixel / 8);
+
+				for (unsigned int y = 0; y < image.height; y+= 1) {
+					for (int x = (image.width - 1) * (image.bitsPerPixel / 8); x >= 0; x-= strideX) {
+						stream.write(image.bytes + (x + (image.height * y * (image.bitsPerPixel / 8))), strideX);
+					}
+				}
 			} else {
 				// NO PROCESSING
 				stream.write(image.bytes, image.width * image.height * (image.bitsPerPixel / 8));
