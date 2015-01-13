@@ -194,6 +194,10 @@ namespace gw {
 				bool persistentColorMapMemory;
 			};
 
+			// -------------------------------------------------------------------------------------
+			//  Pixel data reading 
+			// -------------------------------------------------------------------------------------
+
 			typedef void(*fetchPixelFunc)(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);
 			typedef bool(*fetchPixelsFunc)(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
 
@@ -205,6 +209,14 @@ namespace gw {
 
 			template<fetchPixelFunc, fetchPixelsFunc>
 			bool decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel);
+
+			// -------------------------------------------------------------------------------------
+			//  Image processing
+			// -------------------------------------------------------------------------------------
+
+			typedef void(*storeFunc)(std::ostream &stream, char* bytes, size_t size);
+			typedef char*(*fetchFunc)(char* source, unsigned int x, unsigned int y);
+			typedef char*(*processFunc)(char* target, char* source);
 
 		}
 	} 

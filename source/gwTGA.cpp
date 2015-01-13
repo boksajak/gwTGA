@@ -279,6 +279,43 @@ namespace gw {
 			return err;
 		}
 
+		char* processPassThrough(char* target, char* source) {
+			return source;
+		}
+
+		char* fetchVerticalFlip(char* source, unsigned int x, unsigned int y) {
+
+		}
+
+		char* processPassThrough(char* target, char* source) {
+			return source;
+		}
+
+		void storeToStream(std::ostream &stream, char* bytes, size_t size) {
+			stream.write(bytes, size);
+		}
+
+		template<storeFunc store, processFunc process, fetchFunc fetch>
+		void process2D(std::ostream &stream, int strideX, int strideY, unsigned int beginX, unsigned int beginY, unsigned int endX, unsigned int endY, size_t resultSize) {
+
+			if (beginX == endX || beginY == endY) return;
+
+			unsigned int x = beginX;
+			unsigned int y = beginY;
+
+			do {
+				// outer loop
+				do {
+					// inner loop
+					store(stream, process(NULL, fetch(bytes, x, y)), resultSize);
+
+					y+= strideY;
+				} while (y != endY);
+
+				x += strideX;
+			} while (x != endX);
+		}
+
 		TGAError SaveTga(std::ostream &stream, const TGAImage &image, TGAOptions options) {
 
 			if (image.hasError()) {
@@ -383,6 +420,8 @@ namespace gw {
 			if (options & GWTGA_FLIP_VERTICALLY) {
 				if (!(options & GWTGA_FLIP_HORIZONTALLY)) {
 					// PROCESSING - Vertical Flip
+		//process2D<storeToStream, processPassThrough, fetchVerticalFlip>(
+
 					unsigned int stride = image.width * (image.bitsPerPixel / 8);
 
 					// write rows in reverse
