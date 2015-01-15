@@ -215,7 +215,7 @@ namespace gw {
 			// -------------------------------------------------------------------------------------
 
 			typedef void(*storeFunc)(std::ostream &stream, char* bytes, size_t size);
-			typedef char*(*fetchFunc)(char* source, unsigned int x, unsigned int y);
+			typedef char*(*fetchFunc)(char* source, unsigned int x, unsigned int y, unsigned int imgWidth, unsigned int imgHeight);
 			typedef char*(*processFunc)(char* target, char* source);
 
 		}

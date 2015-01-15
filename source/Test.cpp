@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
 	printImageInfo(gw::tga::LoadTga("test_images\\guitar.tga"));
 
 	gw::tga::TGAImage img = gw::tga::LoadTga("test_images\\guitar.tga");
-	if (gw::tga::SaveTga("test_flipped.tga", img, (gw::tga::TGAOptions)(gw::tga::GWTGA_FLIP_HORIZONTALLY | gw::tga::GWTGA_FLIP_VERTICALLY)) != gw::tga::GWTGA_NONE) {
+	if (gw::tga::SaveTga("test_flipped.tga", img, (gw::tga::TGAOptions)(gw::tga::GWTGA_FLIP_VERTICALLY)) != gw::tga::GWTGA_NONE) {
 		std::cout << "Error while saving TGA" << std::endl;
 	}
 

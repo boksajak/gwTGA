@@ -279,12 +279,12 @@ namespace gw {
 			return err;
 		}
 
-		char* processPassThrough(char* target, char* source) {
-			return source;
+		char* fetchVerticalFlip(char* source, unsigned int x, unsigned int y, unsigned int imgWidth, unsigned int imgHeight) {
+			return 0;
 		}
 
-		char* fetchVerticalFlip(char* source, unsigned int x, unsigned int y) {
-
+		char* fetchY(char* source, unsigned int x, unsigned int y, unsigned int imgWidth, unsigned int imgHeight) {
+			return source + y; 
 		}
 
 		char* processPassThrough(char* target, char* source) {
@@ -296,18 +296,20 @@ namespace gw {
 		}
 
 		template<storeFunc store, processFunc process, fetchFunc fetch>
-		void process2D(std::ostream &stream, int strideX, int strideY, unsigned int beginX, unsigned int beginY, unsigned int endX, unsigned int endY, size_t resultSize) {
+		void process2D(std::ostream &stream, char* source, unsigned int imgWidth, unsigned int imgHeight, int strideX, int strideY, unsigned int beginX, unsigned int beginY, unsigned int endX, unsigned int endY, size_t resultSize) {
 
 			if (beginX == endX || beginY == endY) return;
 
 			unsigned int x = beginX;
 			unsigned int y = beginY;
 
+			char buffer[4]; //< TODO assert it is more than max result size;
+
 			do {
 				// outer loop
 				do {
 					// inner loop
-					store(stream, process(NULL, fetch(bytes, x, y)), resultSize);
+					store(stream, process(buffer, fetch(source, x, y, imgWidth, imgHeight)), resultSize);
 
 					y+= strideY;
 				} while (y != endY);
@@ -420,17 +422,18 @@ namespace gw {
 			if (options & GWTGA_FLIP_VERTICALLY) {
 				if (!(options & GWTGA_FLIP_HORIZONTALLY)) {
 					// PROCESSING - Vertical Flip
-		//process2D<storeToStream, processPassThrough, fetchVerticalFlip>(
+					int stride = image.width * (image.bitsPerPixel / 8);
+					process2D<storeToStream, processPassThrough, fetchY>(stream, image.bytes, image.width, image.height, 1, -stride, 0, (image.height - 1) * stride, 1, -stride, stride);
 
-					unsigned int stride = image.width * (image.bitsPerPixel / 8);
+					//unsigned int stride = image.width * (image.bitsPerPixel / 8);
 
-					// write rows in reverse
-					unsigned int offset = image.height * stride;
+					//// write rows in reverse
+					//unsigned int offset = image.height * stride;
 
-					do {
-						offset -= stride;
-						stream.write(image.bytes + offset, stride);
-					} while (offset != 0);
+					//do {
+					//	offset -= stride;
+					//	stream.write(image.bytes + offset, stride);
+					//} while (offset != 0);
 				} else {
 
 					// PROCESSING - Vertical and horizontal Flip
