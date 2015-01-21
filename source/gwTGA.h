@@ -214,9 +214,17 @@ namespace gw {
 			//  Image processing
 			// -------------------------------------------------------------------------------------
 
-			typedef void(*storeFunc)(std::ostream &stream, char* bytes, size_t size);
 			typedef char*(*fetchFunc)(char* source, unsigned int x, unsigned int y, unsigned int imgWidth, unsigned int imgHeight);
 			typedef char*(*processFunc)(char* target, char* source);
+
+			template<processFunc process, fetchFunc fetch>
+			void processToStream(std::ostream &stream, char* source, unsigned int imgWidth, unsigned int imgHeight, int beginX, int strideX, int endX, int beginY, int strideY, int endY, size_t resultSize);
+			
+			template<processFunc process, fetchFunc fetch>
+			void processToArray(char* target, char* source, unsigned int imgWidth, unsigned int imgHeight, int beginX, int strideX, int endX, int beginY, int strideY, int endY, size_t resultSize);
+
+			char* fetchXPlusY(char* source, unsigned int x, unsigned int y, unsigned int imgWidth, unsigned int imgHeight);
+			char* processPassThrough(char* target, char* source);
 
 		}
 	} 

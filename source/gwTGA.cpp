@@ -279,45 +279,6 @@ namespace gw {
 			return err;
 		}
 
-		char* fetchVerticalFlip(char* source, unsigned int x, unsigned int y, unsigned int imgWidth, unsigned int imgHeight) {
-			return 0;
-		}
-
-		char* fetchY(char* source, unsigned int x, unsigned int y, unsigned int imgWidth, unsigned int imgHeight) {
-			return source + y; 
-		}
-
-		char* processPassThrough(char* target, char* source) {
-			return source;
-		}
-
-		void storeToStream(std::ostream &stream, char* bytes, size_t size) {
-			stream.write(bytes, size);
-		}
-
-		template<storeFunc store, processFunc process, fetchFunc fetch>
-		void process2D(std::ostream &stream, char* source, unsigned int imgWidth, unsigned int imgHeight, int strideX, int strideY, unsigned int beginX, unsigned int beginY, unsigned int endX, unsigned int endY, size_t resultSize) {
-
-			if (beginX == endX || beginY == endY) return;
-
-			unsigned int x = beginX;
-			unsigned int y = beginY;
-
-			char buffer[4]; //< TODO assert it is more than max result size;
-
-			do {
-				// outer loop
-				do {
-					// inner loop
-					store(stream, process(buffer, fetch(source, x, y, imgWidth, imgHeight)), resultSize);
-
-					y+= strideY;
-				} while (y != endY);
-
-				x += strideX;
-			} while (x != endX);
-		}
-
 		TGAError SaveTga(std::ostream &stream, const TGAImage &image, TGAOptions options) {
 
 			if (image.hasError()) {
@@ -419,47 +380,31 @@ namespace gw {
 			}
 
 			// Write pixel data
-			if (options & GWTGA_FLIP_VERTICALLY) {
+			if ((options & GWTGA_OPTIONS_NONE) == options || !options) {
+				// NO PROCESSING
+				stream.write(image.bytes, image.width * image.height * (image.bitsPerPixel / 8));
+
+			} else if (options & GWTGA_FLIP_VERTICALLY) {
 				if (!(options & GWTGA_FLIP_HORIZONTALLY)) {
 					// PROCESSING - Vertical Flip
 					int stride = image.width * (image.bitsPerPixel / 8);
-					process2D<storeToStream, processPassThrough, fetchY>(stream, image.bytes, image.width, image.height, 1, -stride, 0, (image.height - 1) * stride, 1, -stride, stride);
-
-					//unsigned int stride = image.width * (image.bitsPerPixel / 8);
-
-					//// write rows in reverse
-					//unsigned int offset = image.height * stride;
-
-					//do {
-					//	offset -= stride;
-					//	stream.write(image.bytes + offset, stride);
-					//} while (offset != 0);
+					processToStream<processPassThrough, fetchXPlusY>(stream, image.bytes, image.width, image.height, 0, 1, 1, (image.height - 1) * stride, -stride, -stride, stride);
+				
 				} else {
-
 					// PROCESSING - Vertical and horizontal Flip
-					unsigned int strideX = image.bitsPerPixel / 8;
-					unsigned int strideY = image.width * (image.bitsPerPixel / 8);
-
-					// TODO: signed/unsigned comparison
-					for (int y = (image.height - 1) * strideY; y >= 0; y-=strideY) {
-						for (int x = (image.width - 1) * strideX; x >= 0; x-= strideX) {
-							stream.write(image.bytes + x + y, strideX);
-						}
-					}
+					int strideX = image.bitsPerPixel / 8;
+					int strideY = image.width * (image.bitsPerPixel / 8);
+					processToStream<processPassThrough, fetchXPlusY>(stream, image.bytes, image.width, image.height, (image.height - 1) * strideY, -strideY, -strideY, (image.width - 1) * strideX, -strideX, -strideX , strideX);
+			
 				}
 			} else if (options & GWTGA_FLIP_HORIZONTALLY) {
 				// PROCESSING - Horizontal Flip
-				unsigned int strideX = image.bitsPerPixel / 8;
-				unsigned int strideY = image.width * (image.bitsPerPixel / 8);
-				// TODO: signed/unsigned comparison
-				for (int y = 0; y < image.height * strideY; y+=strideY) {
-					for (int x = (image.width - 1) * strideX; x >= 0; x-= strideX) {
-						stream.write(image.bytes + x + y, strideX);
-					}
-				}
+				int strideX = image.bitsPerPixel / 8;
+				int strideY = image.width * (image.bitsPerPixel / 8);
+				processToStream<processPassThrough, fetchXPlusY>(stream, image.bytes, image.width, image.height, 0, strideY, (image.height) * strideY, (image.width - 1) * strideX, -strideX, -strideX , strideX);
+		
 			} else {
-				// NO PROCESSING
-				stream.write(image.bytes, image.width * image.height * (image.bitsPerPixel / 8));
+				// TODO
 			}
 
 			if (stream.fail()) {
@@ -601,6 +546,36 @@ namespace gw {
 				}
 
 				return true;
+			}
+
+			char* fetchXPlusY(char* source, unsigned int x, unsigned int y, unsigned int imgWidth, unsigned int imgHeight) {
+				return source + x + y; 
+			}
+
+			char* processPassThrough(char* target, char* source) {
+				return source;
+			}
+
+			template<processFunc process, fetchFunc fetch>
+			void processToStream(std::ostream &stream, char* source, unsigned int imgWidth, unsigned int imgHeight, int beginX, int strideX, int endX, int beginY, int strideY, int endY, size_t resultSize) {
+
+				if (beginX == endX || beginY == endY) return;
+
+				char buffer[4]; //< TODO assert it is more than max result size;
+
+				int x = beginX;
+				do {
+					// outer loop
+					int y = beginY;
+					do {
+						// inner loop
+						stream.write(process(buffer, fetch(source, x, y, imgWidth, imgHeight)), resultSize);
+
+						y+= strideY;
+					} while (y != endY);
+
+					x += strideX;
+				} while (x != endX);
 			}
 		}
 	} 
