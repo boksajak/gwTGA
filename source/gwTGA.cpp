@@ -4,7 +4,7 @@
 
 namespace gw {          
 	namespace tga {
-		
+
 		using namespace details;
 
 		TGAImage LoadTga(char* fileName) {
@@ -13,7 +13,7 @@ namespace gw {
 
 		TGAImage LoadTga(char* fileName, TGAOptions options) {
 			TGALoaderListener<> listener(options & GWTGA_RETURN_COLOR_MAP);
-			return LoadTga(fileName, &listener);
+			return LoadTga(fileName, &listener, options);
 		}
 
 		TGAImage LoadTga(char* fileName, ITGALoaderListener* listener) {
@@ -37,7 +37,7 @@ namespace gw {
 			fileStream.close();
 
 			return result;
-	}
+		}
 
 		TGAImage LoadTga(std::istream &stream) {
 			return LoadTga(stream, GWTGA_OPTIONS_NONE);
@@ -204,7 +204,31 @@ namespace gw {
 				// 2 - Uncompressed, RGB images
 				// 3 - Uncompressed, black and white images.
 
-				stream.read(resultImage.bytes, imgDataSize);
+				if ((options & GWTGA_OPTIONS_NONE) == options || !options) {
+					// NO PROCESSING
+					stream.read(resultImage.bytes, imgDataSize);
+
+				} else if (options & GWTGA_FLIP_VERTICALLY) {
+					if (!(options & GWTGA_FLIP_HORIZONTALLY)) {
+						// PROCESSING - Vertical Flip
+						int stride = resultImage.width * (resultImage.bitsPerPixel / 8);
+						processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, 0, 1, 1, (resultImage.height - 1) * stride, -stride, -stride, stride);
+
+					} else {
+						// PROCESSING - Vertical and horizontal Flip
+						int strideX = resultImage.bitsPerPixel / 8;
+						int strideY = resultImage.width * (resultImage.bitsPerPixel / 8);
+						processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, (resultImage.height - 1) * strideY, -strideY, -strideY, (resultImage.width - 1) * strideX, -strideX, -strideX , strideX);
+					}
+				} else if (options & GWTGA_FLIP_HORIZONTALLY) {
+					// PROCESSING - Horizontal Flip
+					int strideX = resultImage.bitsPerPixel / 8;
+					int strideY = resultImage.width * (resultImage.bitsPerPixel / 8);
+					processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, 0, strideY, (resultImage.height) * strideY, (resultImage.width - 1) * strideX, -strideX, -strideX , strideX);
+
+				} else {
+					// TODO
+				}
 
 				if (stream.fail()) {
 					resultImage.error = GWTGA_IO_ERROR;
@@ -253,7 +277,7 @@ namespace gw {
 
 			return resultImage;
 		}
-		
+
 
 		TGAError SaveTga(char* fileName, const TGAImage &image) {
 			return SaveTga(fileName, image, GWTGA_OPTIONS_NONE);
@@ -389,20 +413,20 @@ namespace gw {
 					// PROCESSING - Vertical Flip
 					int stride = image.width * (image.bitsPerPixel / 8);
 					processToStream<processPassThrough, fetchXPlusY>(stream, image.bytes, image.width, image.height, 0, 1, 1, (image.height - 1) * stride, -stride, -stride, stride);
-				
+
 				} else {
 					// PROCESSING - Vertical and horizontal Flip
 					int strideX = image.bitsPerPixel / 8;
 					int strideY = image.width * (image.bitsPerPixel / 8);
 					processToStream<processPassThrough, fetchXPlusY>(stream, image.bytes, image.width, image.height, (image.height - 1) * strideY, -strideY, -strideY, (image.width - 1) * strideX, -strideX, -strideX , strideX);
-			
+
 				}
 			} else if (options & GWTGA_FLIP_HORIZONTALLY) {
 				// PROCESSING - Horizontal Flip
 				int strideX = image.bitsPerPixel / 8;
 				int strideY = image.width * (image.bitsPerPixel / 8);
 				processToStream<processPassThrough, fetchXPlusY>(stream, image.bytes, image.width, image.height, 0, strideY, (image.height) * strideY, (image.width - 1) * strideX, -strideX, -strideX , strideX);
-		
+
 			} else {
 				// TODO
 			}
@@ -418,7 +442,7 @@ namespace gw {
 
 			template<size_t tempMemorySize>
 			char* TGALoaderListener<tempMemorySize>::operator()(const unsigned int &bitsPerPixel, const unsigned int &width, const unsigned int &height, TGAMemoryType mType) {						
-				
+
 				if (mType == GWTGA_COLOR_PALETTE_TEMPORARY && width * height * (bitsPerPixel / 8) <= tempMemorySize) {
 					return tempMemory;
 				} else if (mType == GWTGA_IMAGE_DATA) {
@@ -577,6 +601,29 @@ namespace gw {
 					x += strideX;
 				} while (x != endX);
 			}
+
+			template<processFunc process, fetchFunc fetch>
+			void processToArray(std::istream &stream, char* target, unsigned int imgWidth, unsigned int imgHeight, int beginX, int strideX, int endX, int beginY, int strideY, int endY, size_t resultSize) {
+
+				if (beginX == endX || beginY == endY) return;
+
+				char buffer[4]; //< TODO assert it is more than max result size;
+
+				int x = beginX;
+				do {
+					// outer loop
+					int y = beginY;
+					do {
+
+						// inner loop
+						stream.read(process(buffer, fetch(target, x, y, imgWidth, imgHeight)), resultSize);
+						y+= strideY;
+					} while (y != endY);
+
+					x += strideX;
+				} while (x != endX);
+			}
+
 		}
 	} 
 }
