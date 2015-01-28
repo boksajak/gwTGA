@@ -239,7 +239,27 @@ namespace gw {
 
 				// 10 - Runlength encoded RGB images
 				// 11 - Runlength encoded black and white images.
-				decompressRLE<fetchPixelUncompressed, fetchPixelsUncompressed>(resultImage.bytes, pixelsNumber, bytesPerPixel, stream, NULL, bytesPerPixel);
+
+				if ((options & GWTGA_OPTIONS_NONE) == options || !options) {
+					// NO PROCESSING
+					decompressRLE<fetchPixelUncompressed, fetchPixelsUncompressed>(resultImage.bytes, pixelsNumber, bytesPerPixel, stream, NULL, bytesPerPixel, resultImage.width, resultImage.height, &flipFuncPass, false);
+
+				} else if (options & GWTGA_FLIP_VERTICALLY) {
+					if (!(options & GWTGA_FLIP_HORIZONTALLY)) {
+						// PROCESSING - Vertical Flip
+						decompressRLE<fetchPixelUncompressed, fetchPixelsUncompressed>(resultImage.bytes, pixelsNumber, bytesPerPixel, stream, NULL, bytesPerPixel, resultImage.width, resultImage.height, &flipFuncVertical, true);
+
+					} else {
+						// PROCESSING - Vertical and horizontal Flip
+						decompressRLE<fetchPixelUncompressed, fetchPixelsUncompressed>(resultImage.bytes, pixelsNumber, bytesPerPixel, stream, NULL, bytesPerPixel, resultImage.width, resultImage.height, &flipFuncHorizontalAndVertical, true);
+					}
+				} else if (options & GWTGA_FLIP_HORIZONTALLY) {
+					// PROCESSING - Horizontal Flip
+					decompressRLE<fetchPixelUncompressed, fetchPixelsUncompressed>(resultImage.bytes, pixelsNumber, bytesPerPixel, stream, NULL, bytesPerPixel, resultImage.width, resultImage.height, &flipFuncHorizontal, true);
+				
+				} else {
+					// TODO
+				}
 
 			}  else if (header.ImageType == 1 || header.ImageType == 9 ) {
 
@@ -267,7 +287,7 @@ namespace gw {
 				} else if (header.ImageType == 9) {
 
 					// 9  -  Runlength encoded color-mapped images
-					if (!decompressRLE<fetchPixelColorMap, fetchPixelsColorMap>(resultImage.bytes, pixelsNumber, header.imageSpec.bitsPerPixel / 8, stream, colorMap, bytesPerPixel)) {
+					if (!decompressRLE<fetchPixelColorMap, fetchPixelsColorMap>(resultImage.bytes, pixelsNumber, header.imageSpec.bitsPerPixel / 8, stream, colorMap, bytesPerPixel, resultImage.width, resultImage.height, &flipFuncPass, false)) {
 						// Error while reading compressed image data
 						resultImage.error = GWTGA_IO_ERROR;
 						return resultImage;
@@ -517,8 +537,32 @@ namespace gw {
 				return true;
 			}
 
+			size_t flipFuncPass(size_t i, size_t width, size_t height, size_t bpp) {
+				return i * bpp;
+			}
+
+			size_t flipFuncHorizontal(size_t i, size_t width, size_t height, size_t bpp) {
+
+				size_t rowNum = i / width;
+				size_t colNum = i % width;
+
+				return ((rowNum) * width  +(width - 1 - colNum)) * bpp;
+			}
+
+			size_t flipFuncVertical(size_t i, size_t width, size_t height, size_t bpp) {
+
+				size_t rowNum = i / width;
+				size_t colNum = i % width;
+
+				return ((height - 1 - rowNum) * width  +colNum) * bpp;
+			}
+		
+			size_t flipFuncHorizontalAndVertical(size_t i, size_t width, size_t height, size_t bpp) {
+				return (( width * height - 1) - i)  * bpp;
+			}
+
 			template<fetchPixelFunc fetchPixel, fetchPixelsFunc fetchPixels>
-			bool decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel) {
+			bool decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel, size_t imgWidth, size_t imgHeight, flipFunc flip, bool perPixelProcessing) {
 
 				// number of pixels read so far
 				size_t readPixels = 0;
@@ -553,19 +597,28 @@ namespace gw {
 						// Emit repetitionCount times given color value
 						for (int i = 0; i < repetitionCount; i++) {
 							// TODO: Check if this is inlined
-							fetchPixel((void*) &target[readPixels * bytesPerOutputPixel], (void*) colorValues, bytesPerInputPixel, colorMap, bytesPerOutputPixel);
+							fetchPixel((void*) &target[flip(readPixels, imgWidth, imgHeight, bytesPerOutputPixel)], (void*) colorValues, bytesPerInputPixel, colorMap, bytesPerOutputPixel);
 							readPixels++;
 						}
 
 					} else {
 						// RAW packet
 
-						// Emit repetitionCount times upcoming color values
-						// TODO: Check if this is inlined
-						if (!fetchPixels(&target[readPixels * bytesPerOutputPixel], stream, bytesPerInputPixel, colorMap, bytesPerOutputPixel, repetitionCount)) {
-							return false;
+						if (perPixelProcessing) {
+							// Emit repetitionCount times upcoming color value
+							for (int i = 0; i < repetitionCount; i++) {
+								stream.read(colorValues, bytesPerInputPixel);
+								fetchPixel((void*) &target[flip(readPixels, imgWidth, imgHeight, bytesPerOutputPixel)], (void*) colorValues, bytesPerInputPixel, colorMap, bytesPerOutputPixel);
+								readPixels++;
+							}
+						} else {
+							// Emit repetitionCount times upcoming color values
+							// TODO: Check if this is inlined
+							if (!fetchPixels(&target[flip(readPixels, imgWidth, imgHeight, bytesPerOutputPixel)], stream, bytesPerInputPixel, colorMap, bytesPerOutputPixel, repetitionCount)) {
+								return false;
+							}
+							readPixels += repetitionCount;
 						}
-						readPixels += repetitionCount;
 					}
 				}
 

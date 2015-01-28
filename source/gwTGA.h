@@ -197,6 +197,7 @@ namespace gw {
 			// -------------------------------------------------------------------------------------
 			//  Pixel data reading 
 			// -------------------------------------------------------------------------------------
+			typedef size_t(*flipFunc)(size_t i, size_t width, size_t height, size_t bpp);
 
 			typedef void(*fetchPixelFunc)(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);
 			typedef bool(*fetchPixelsFunc)(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
@@ -208,12 +209,17 @@ namespace gw {
 			bool fetchPixelsColorMap(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
 
 			template<fetchPixelFunc, fetchPixelsFunc>
-			bool decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel);
+			bool decompressRLE(char* target, size_t pixelsNumber, size_t bytesPerInputPixel, std::istream &stream, char* colorMap, size_t bytesPerOutputPixel, size_t imgWidth, size_t imgHeight, flipFunc flip, bool perPixelProcessing);
 
 			// -------------------------------------------------------------------------------------
 			//  Image processing
 			// -------------------------------------------------------------------------------------
 
+			size_t flipFuncPass(size_t i, size_t width, size_t height, size_t bpp);
+			size_t flipFuncVertical(size_t i, size_t width, size_t height, size_t bpp);
+			size_t flipFuncHorizontal(size_t i, size_t width, size_t height, size_t bpp);
+			size_t flipFuncHorizontalAndVertical(size_t i, size_t width, size_t height, size_t bpp);
+			
 			typedef char*(*fetchFunc)(char* source, unsigned int x, unsigned int y, unsigned int imgWidth, unsigned int imgHeight);
 			typedef char*(*processFunc)(char* target, char* source);
 
