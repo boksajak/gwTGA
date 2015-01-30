@@ -198,6 +198,7 @@ namespace gw {
 			//  Pixel data reading 
 			// -------------------------------------------------------------------------------------
 			typedef size_t(*flipFunc)(size_t i, size_t width, size_t height, size_t bpp);
+			void getProcessingInfo(flipFunc &flipFuncType, size_t &stride, bool flipVertically, bool flipHorizontally, size_t width, size_t height);
 
 			typedef void(*fetchPixelFunc)(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);
 			typedef bool(*fetchPixelsFunc)(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
@@ -222,6 +223,7 @@ namespace gw {
 			
 			typedef char*(*fetchFunc)(char* source, unsigned int x, unsigned int y, unsigned int imgWidth, unsigned int imgHeight);
 			typedef char*(*processFunc)(char* target, char* source);
+
 
 			template<processFunc process, fetchFunc fetch>
 			void processToStream(std::ostream &stream, char* source, unsigned int imgWidth, unsigned int imgHeight, int beginX, int strideX, int endX, int beginY, int strideY, int endY, size_t resultSize);

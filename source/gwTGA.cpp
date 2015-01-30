@@ -51,6 +51,18 @@ namespace gw {
 		TGAImage LoadTga(std::istream &stream, ITGALoaderListener* listener, TGAOptions options) {
 			// TODO: TGA is little endian. Make sure reading from stream is little endian
 
+			// Parse options
+			bool flipVertically = false;
+			bool flipHorizontally = false;
+
+			if (options & GWTGA_FLIP_VERTICALLY) {
+				flipVertically = true;
+			} 
+			if (options & GWTGA_FLIP_HORIZONTALLY) {
+				flipHorizontally = true;
+			}
+
+
 			TGAImage resultImage;
 
 			// Read header
@@ -204,12 +216,12 @@ namespace gw {
 				// 2 - Uncompressed, RGB images
 				// 3 - Uncompressed, black and white images.
 
-				if ((options & GWTGA_OPTIONS_NONE) == options || !options) {
+				if (!flipVertically && !flipHorizontally) {
 					// NO PROCESSING
 					stream.read(resultImage.bytes, imgDataSize);
 
-				} else if (options & GWTGA_FLIP_VERTICALLY) {
-					if (!(options & GWTGA_FLIP_HORIZONTALLY)) {
+				} else if (flipVertically) {
+					if (!flipHorizontally) {
 						// PROCESSING - Vertical Flip
 						int stride = resultImage.width * (resultImage.bitsPerPixel / 8);
 						processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, 0, 1, 1, (resultImage.height - 1) * stride, -stride, -stride, stride);
@@ -220,7 +232,7 @@ namespace gw {
 						int strideY = resultImage.width * (resultImage.bitsPerPixel / 8);
 						processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, (resultImage.height - 1) * strideY, -strideY, -strideY, (resultImage.width - 1) * strideX, -strideX, -strideX , strideX);
 					}
-				} else if (options & GWTGA_FLIP_HORIZONTALLY) {
+				} else if (flipHorizontally) {
 					// PROCESSING - Horizontal Flip
 					int strideX = resultImage.bitsPerPixel / 8;
 					int strideY = resultImage.width * (resultImage.bitsPerPixel / 8);
@@ -241,32 +253,15 @@ namespace gw {
 				// 11 - Runlength encoded black and white images.
 
 				bool perPixelProcessing;
+				size_t stride;
 				flipFunc flipFuncType;
 
-				// TODO: Remove code duplication
-				if ((options & GWTGA_OPTIONS_NONE) == options || !options) {
-					// NO PROCESSING
+				getProcessingInfo(flipFuncType, stride, flipVertically, flipHorizontally, resultImage.width, resultImage.height);
+
+				if (stride == resultImage.width * resultImage.height) {
 					perPixelProcessing = false;
-					flipFuncType = flipFuncPass;
-
-				} else if (options & GWTGA_FLIP_VERTICALLY) {
-					if (!(options & GWTGA_FLIP_HORIZONTALLY)) {
-						// PROCESSING - Vertical Flip
-						perPixelProcessing = true;
-						flipFuncType = flipFuncVertical;
-
-					} else {
-						// PROCESSING - Vertical and horizontal Flip
-						perPixelProcessing = true;
-						flipFuncType = flipFuncHorizontalAndVertical;
-					}
-				} else if (options & GWTGA_FLIP_HORIZONTALLY) {
-					// PROCESSING - Horizontal Flip
-					perPixelProcessing = true;
-					flipFuncType = flipFuncHorizontal;
-
 				} else {
-					// TODO
+					perPixelProcessing = true;
 				}
 
 				if (!decompressRLE<fetchPixelUncompressed, fetchPixelsUncompressed>(resultImage.bytes, pixelsNumber, bytesPerPixel, stream, NULL, bytesPerPixel, resultImage.width, resultImage.height, flipFuncType, perPixelProcessing)) {
@@ -297,35 +292,10 @@ namespace gw {
 				if (header.ImageType == 1) {
 
 					// 1  -  Uncompressed, color-mapped images
-
-					flipFunc flipFuncType;
 					size_t stride;
+					flipFunc flipFuncType;
 
-					// TODO: Remove code duplication
-					if ((options & GWTGA_OPTIONS_NONE) == options || !options) {
-						// NO PROCESSING
-						flipFuncType = flipFuncPass;
-						stride = resultImage.width * resultImage.height;
-
-					} else if (options & GWTGA_FLIP_VERTICALLY) {
-						if (!(options & GWTGA_FLIP_HORIZONTALLY)) {
-							// PROCESSING - Vertical Flip
-							flipFuncType = flipFuncVertical;
-							stride = resultImage.width;
-
-						} else {
-							// PROCESSING - Vertical and horizontal Flip
-							flipFuncType = flipFuncHorizontalAndVertical;
-							stride = 1;
-						}
-					} else if (options & GWTGA_FLIP_HORIZONTALLY) {
-						// PROCESSING - Horizontal Flip
-						flipFuncType = flipFuncHorizontal;
-						stride = 1;
-
-					} else {
-						// TODO
-					}
+					getProcessingInfo(flipFuncType, stride, flipVertically, flipHorizontally, resultImage.width, resultImage.height);
 
 					for (size_t i = 0; i < resultImage.width * resultImage.height; i += stride) {
 						fetchPixelsColorMap(&resultImage.bytes[flipFuncType(i, resultImage.width, resultImage.height, bytesPerPixel)], stream, header.imageSpec.bitsPerPixel / 8, colorMap, bytesPerPixel, stride);
@@ -334,33 +304,17 @@ namespace gw {
 				} else if (header.ImageType == 9) {
 
 					bool perPixelProcessing;
+					size_t stride;
 					flipFunc flipFuncType;
 
-					// TODO: Remove code duplication
-					if ((options & GWTGA_OPTIONS_NONE) == options || !options) {
-						// NO PROCESSING
+					getProcessingInfo(flipFuncType, stride, flipVertically, flipHorizontally, resultImage.width, resultImage.height);
+
+					if (stride == resultImage.width * resultImage.height) {
 						perPixelProcessing = false;
-						flipFuncType = flipFuncPass;
-
-					} else if (options & GWTGA_FLIP_VERTICALLY) {
-						if (!(options & GWTGA_FLIP_HORIZONTALLY)) {
-							// PROCESSING - Vertical Flip
-							perPixelProcessing = true;
-							flipFuncType = flipFuncVertical;
-
-						} else {
-							// PROCESSING - Vertical and horizontal Flip
-							perPixelProcessing = true;
-							flipFuncType = flipFuncHorizontalAndVertical;
-						}
-					} else if (options & GWTGA_FLIP_HORIZONTALLY) {
-						// PROCESSING - Horizontal Flip
-						perPixelProcessing = true;
-						flipFuncType = flipFuncHorizontal;
-
 					} else {
-						// TODO
+						perPixelProcessing = true;
 					}
+
 					// 9  -  Runlength encoded color-mapped images
 					if (!decompressRLE<fetchPixelColorMap, fetchPixelsColorMap>(resultImage.bytes, pixelsNumber, header.imageSpec.bitsPerPixel / 8, stream, colorMap, bytesPerPixel, resultImage.width, resultImage.height, flipFuncType, perPixelProcessing)) {
 						// Error while reading compressed image data
@@ -559,6 +513,32 @@ namespace gw {
 					delete[] colorMapMemory;
 					colorMapMemory = NULL;
 				}
+			}
+
+			void getProcessingInfo(flipFunc &flipFuncType, size_t &stride, bool flipVertically, bool flipHorizontally, size_t width, size_t height) {
+
+				if (!flipVertically && !flipHorizontally) {
+					// NO PROCESSING
+					flipFuncType = flipFuncPass;
+					stride = width * height;
+
+				} else if (flipVertically) {
+					if (!flipHorizontally) {
+						// PROCESSING - Vertical Flip
+						flipFuncType = flipFuncVertical;
+						stride = width;
+
+					} else {
+						// PROCESSING - Vertical and horizontal Flip
+						flipFuncType = flipFuncHorizontalAndVertical;
+						stride = 1;
+					}
+				} else if (flipHorizontally) {
+					// PROCESSING - Horizontal Flip
+					flipFuncType = flipFuncHorizontal;
+					stride = 1;
+
+				} 
 			}
 
 			void fetchPixelUncompressed(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
