@@ -52,14 +52,10 @@ namespace gw {
 			// TODO: TGA is little endian. Make sure reading from stream is little endian
 
 			// Parse options
-			bool flipVertically = false;
-			bool flipHorizontally = false;
-			bool returnColorMap = false;
+			bool flipVertically = ((options & GWTGA_FLIP_VERTICALLY) == GWTGA_FLIP_VERTICALLY);
+			bool flipHorizontally = ((options & GWTGA_FLIP_HORIZONTALLY) == GWTGA_FLIP_HORIZONTALLY);
+			bool returnColorMap = ((options & GWTGA_RETURN_COLOR_MAP) == GWTGA_RETURN_COLOR_MAP);
 
-			flipVertically = ((options & GWTGA_FLIP_VERTICALLY) == GWTGA_FLIP_VERTICALLY);
-			flipHorizontally = ((options & GWTGA_FLIP_HORIZONTALLY) == GWTGA_FLIP_HORIZONTALLY);
-			returnColorMap = ((options & GWTGA_RETURN_COLOR_MAP) == GWTGA_RETURN_COLOR_MAP);
-				
 			TGAImage resultImage;
 
 			// Read header
@@ -209,7 +205,9 @@ namespace gw {
 			}
 
 			// Read pixel data
-			if (header.ImageType == 2 || header.ImageType == 3 || (header.ImageType == 1 && returnColorMap)) {
+			if (header.ImageType == 2 || header.ImageType == 3 || 
+				(header.ImageType == 1 && returnColorMap)) { // color mapped, but do not resolve palette is specified
+				
 				// 2 - Uncompressed, RGB images
 				// 3 - Uncompressed, black and white images.
 
@@ -244,7 +242,8 @@ namespace gw {
 					return resultImage;
 				}
 
-			} else if (header.ImageType == 10 || header.ImageType == 11 || (header.ImageType == 9 && returnColorMap)) {
+			} else if (header.ImageType == 10 || header.ImageType == 11 ||
+				(header.ImageType == 9 && returnColorMap)) {  // color mapped, RLE compressed, but do not resolve palette is specified
 
 				// 10 - Runlength encoded RGB images
 				// 11 - Runlength encoded black and white images.
@@ -543,11 +542,11 @@ namespace gw {
 				} 
 			}
 
-			void fetchPixelUncompressed(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
+			void fetchPixelUncompressed(char* target, char* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
 				memcpy(target, input, bytesPerInputPixel);
 			}
 
-			void fetchPixelColorMap(void* target, void* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
+			void fetchPixelColorMap(char* target, char* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel) { 
 				size_t colorIdx = 0;
 				// Read color index (TODO: make sure this works on little/big endian machines)
 				switch (bytesPerInputPixel) {
@@ -653,7 +652,7 @@ namespace gw {
 						// Emit repetitionCount times given color value
 						for (int i = 0; i < repetitionCount; i++) {
 							// TODO: Check if this is inlined
-							fetchPixel((void*) &target[flip(readPixels, imgWidth, imgHeight, bytesPerOutputPixel)], (void*) colorValues, bytesPerInputPixel, colorMap, bytesPerOutputPixel);
+							fetchPixel(&target[flip(readPixels, imgWidth, imgHeight, bytesPerOutputPixel)], colorValues, bytesPerInputPixel, colorMap, bytesPerOutputPixel);
 							readPixels++;
 						}
 
@@ -664,7 +663,7 @@ namespace gw {
 							// Emit repetitionCount times upcoming color value
 							for (int i = 0; i < repetitionCount; i++) {
 								stream.read(colorValues, bytesPerInputPixel);
-								fetchPixel((void*) &target[flip(readPixels, imgWidth, imgHeight, bytesPerOutputPixel)], (void*) colorValues, bytesPerInputPixel, colorMap, bytesPerOutputPixel);
+								fetchPixel(&target[flip(readPixels, imgWidth, imgHeight, bytesPerOutputPixel)], colorValues, bytesPerInputPixel, colorMap, bytesPerOutputPixel);
 								readPixels++;
 							}
 						} else {
