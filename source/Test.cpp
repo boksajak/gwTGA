@@ -145,6 +145,14 @@ int main(int argc, char *argv[]) {
 		std::cout << "Image saved successfully" << std::endl;
 	}
 
+	img = gw::tga::LoadTga("test_images\\guitar_palette_rle.tga", (gw::tga::TGAOptions)(gw::tga::GWTGA_RETURN_COLOR_MAP));
+
+	if (gw::tga::SaveTga("test_clr_map.tga", img) != gw::tga::GWTGA_NONE) {
+		std::cout << "Error while saving TGA" << std::endl;
+	} else {
+		std::cout << "Image saved successfully" << std::endl;
+	}
+
 	std::cout << std::endl;
 	std::cout << "Press any key to end";
 

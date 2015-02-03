@@ -54,15 +54,12 @@ namespace gw {
 			// Parse options
 			bool flipVertically = false;
 			bool flipHorizontally = false;
+			bool returnColorMap = false;
 
-			if (options & GWTGA_FLIP_VERTICALLY) {
-				flipVertically = true;
-			} 
-			if (options & GWTGA_FLIP_HORIZONTALLY) {
-				flipHorizontally = true;
-			}
-
-
+			flipVertically = ((options & GWTGA_FLIP_VERTICALLY) == GWTGA_FLIP_VERTICALLY);
+			flipHorizontally = ((options & GWTGA_FLIP_HORIZONTALLY) == GWTGA_FLIP_HORIZONTALLY);
+			returnColorMap = ((options & GWTGA_RETURN_COLOR_MAP) == GWTGA_RETURN_COLOR_MAP);
+				
 			TGAImage resultImage;
 
 			// Read header
@@ -92,7 +89,7 @@ namespace gw {
 			resultImage.xOrigin = header.imageSpec.xOrigin;
 			resultImage.yOrigin = header.imageSpec.yOrigin;
 
-			if (header.colorMapSpec.colorMapLength == 0) {
+			if (header.colorMapSpec.colorMapLength == 0 || returnColorMap) {
 				resultImage.bitsPerPixel = header.imageSpec.bitsPerPixel;
 			} else {
 				resultImage.bitsPerPixel = header.colorMapSpec.colorMapEntrySize;
@@ -164,8 +161,8 @@ namespace gw {
 			char* colorMap = NULL;
 			if (header.colorMapSpec.colorMapLength > 0) {
 
-				// Pick temporary memory (possibly from stack or preallocated) when we dont need color palette after loading the image
-				TGAMemoryType colorMapType = (options & GWTGA_RETURN_COLOR_MAP) ? GWTGA_COLOR_PALETTE : GWTGA_COLOR_PALETTE_TEMPORARY;
+				// Pick temporary memory (possibly from stack or preallocated) when we dont need color palette anymore after loading the image
+				TGAMemoryType colorMapType = returnColorMap ? GWTGA_COLOR_PALETTE : GWTGA_COLOR_PALETTE_TEMPORARY;
 
 				colorMap = (*listener)(header.colorMapSpec.colorMapEntrySize, header.colorMapSpec.colorMapLength, 1, colorMapType);
 
@@ -175,10 +172,10 @@ namespace gw {
 					return resultImage;
 				}
 
-				if (options & GWTGA_RETURN_COLOR_MAP) {
+				if (returnColorMap) {
 					resultImage.colorMap.bytes = colorMap;
 					resultImage.colorMap.length = header.colorMapSpec.colorMapLength;
-					resultImage.colorMap.bitsPerPixel = header.imageSpec.bitsPerPixel;
+					resultImage.colorMap.bitsPerPixel = header.colorMapSpec.colorMapEntrySize;
 				}
 
 				size_t size = header.colorMapSpec.colorMapLength * (header.colorMapSpec.colorMapEntrySize / 8);
@@ -212,7 +209,7 @@ namespace gw {
 			}
 
 			// Read pixel data
-			if (header.ImageType == 2 || header.ImageType == 3) {
+			if (header.ImageType == 2 || header.ImageType == 3 || (header.ImageType == 1 && returnColorMap)) {
 				// 2 - Uncompressed, RGB images
 				// 3 - Uncompressed, black and white images.
 
@@ -223,19 +220,19 @@ namespace gw {
 				} else if (flipVertically) {
 					if (!flipHorizontally) {
 						// PROCESSING - Vertical Flip
-						int stride = resultImage.width * (resultImage.bitsPerPixel / 8);
+						int stride = resultImage.width * bytesPerPixel;
 						processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, 0, 1, 1, (resultImage.height - 1) * stride, -stride, -stride, stride);
 
 					} else {
 						// PROCESSING - Vertical and horizontal Flip
-						int strideX = resultImage.bitsPerPixel / 8;
-						int strideY = resultImage.width * (resultImage.bitsPerPixel / 8);
+						int strideX = bytesPerPixel;
+						int strideY = resultImage.width * bytesPerPixel;
 						processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, (resultImage.height - 1) * strideY, -strideY, -strideY, (resultImage.width - 1) * strideX, -strideX, -strideX , strideX);
 					}
 				} else if (flipHorizontally) {
 					// PROCESSING - Horizontal Flip
-					int strideX = resultImage.bitsPerPixel / 8;
-					int strideY = resultImage.width * (resultImage.bitsPerPixel / 8);
+					int strideX = bytesPerPixel;
+					int strideY = resultImage.width * bytesPerPixel;
 					processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, 0, strideY, (resultImage.height) * strideY, (resultImage.width - 1) * strideX, -strideX, -strideX , strideX);
 
 				} else {
@@ -247,7 +244,7 @@ namespace gw {
 					return resultImage;
 				}
 
-			} else if (header.ImageType == 10 || header.ImageType == 11) {
+			} else if (header.ImageType == 10 || header.ImageType == 11 || (header.ImageType == 9 && returnColorMap)) {
 
 				// 10 - Runlength encoded RGB images
 				// 11 - Runlength encoded black and white images.
@@ -271,8 +268,6 @@ namespace gw {
 				}
 
 			}  else if (header.ImageType == 1 || header.ImageType == 9 ) {
-
-				// TODO: Do not resolve color map if RETURN COLOR MAP was specified
 
 				// 1  -  Uncompressed, color-mapped images
 				// 9  -  Runlength encoded color-mapped images
@@ -375,6 +370,11 @@ namespace gw {
 				return GWTGA_UNSUPPORTED_PIXEL_DEPTH;
 			}
 
+			if (image.hasColorMap() && (image.colorMap.bitsPerPixel & 0x07) != 0) {
+				// Bits per pixel has to be divisible by 8 for color map too
+				return GWTGA_UNSUPPORTED_PIXEL_DEPTH;
+			}
+
 			// Write header
 			TGAHeader header;
 			header.iDLength = 0;
@@ -447,32 +447,34 @@ namespace gw {
 			stream.write((char*)&header.imageSpec.imgDescriptor, sizeof(header.imageSpec.imgDescriptor));
 
 			// Write color map
-			if (image.colorMap.bytes != NULL && image.colorMap.bitsPerPixel != 0 && image.colorMap.length != 0) {
-				stream.write((char*)&image.colorMap.bytes, image.colorMap.length * (image.colorMap.bitsPerPixel / 8));
+			if (image.hasColorMap()) {
+				stream.write(image.colorMap.bytes, image.colorMap.length * (image.colorMap.bitsPerPixel / 8));
 			}
+			
+			unsigned char bytesPerPixel = image.bitsPerPixel / 8;
 
 			// Write pixel data
 			if ((options & GWTGA_OPTIONS_NONE) == options || !options) {
 				// NO PROCESSING
-				stream.write(image.bytes, image.width * image.height * (image.bitsPerPixel / 8));
+				stream.write(image.bytes, image.width * image.height * bytesPerPixel);
 
 			} else if (options & GWTGA_FLIP_VERTICALLY) {
 				if (!(options & GWTGA_FLIP_HORIZONTALLY)) {
 					// PROCESSING - Vertical Flip
-					int stride = image.width * (image.bitsPerPixel / 8);
+					int stride = image.width * bytesPerPixel;
 					processToStream<processPassThrough, fetchXPlusY>(stream, image.bytes, image.width, image.height, 0, 1, 1, (image.height - 1) * stride, -stride, -stride, stride);
 
 				} else {
 					// PROCESSING - Vertical and horizontal Flip
-					int strideX = image.bitsPerPixel / 8;
-					int strideY = image.width * (image.bitsPerPixel / 8);
+					int strideX = bytesPerPixel;
+					int strideY = image.width * bytesPerPixel;
 					processToStream<processPassThrough, fetchXPlusY>(stream, image.bytes, image.width, image.height, (image.height - 1) * strideY, -strideY, -strideY, (image.width - 1) * strideX, -strideX, -strideX , strideX);
 
 				}
 			} else if (options & GWTGA_FLIP_HORIZONTALLY) {
 				// PROCESSING - Horizontal Flip
-				int strideX = image.bitsPerPixel / 8;
-				int strideY = image.width * (image.bitsPerPixel / 8);
+				int strideX = bytesPerPixel;
+				int strideY = image.width * bytesPerPixel;
 				processToStream<processPassThrough, fetchXPlusY>(stream, image.bytes, image.width, image.height, 0, strideY, (image.height) * strideY, (image.width - 1) * strideX, -strideX, -strideX , strideX);
 
 			} else {
