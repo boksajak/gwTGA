@@ -345,6 +345,65 @@ namespace gw {
 			return err;
 		}
 
+		bool compressRLE(std::ostream &stream, char* source, size_t pixelsNumber, size_t bytesPerInputPixel) {
+
+			char* current = source;
+			char* nextDifferent = source + 1;
+			char* end = source + pixelsNumber;
+			char packetHeader = 0;
+
+			// find longest sequence of same values
+			while (nextDifferent < end) {
+
+				size_t repetitionCount = 1;
+
+				while (*current == *nextDifferent) { //< TODO: Compare all pixel bytes
+					
+					nextDifferent++;
+					repetitionCount = nextDifferent - current;
+
+					if (repetitionCount == 128 || nextDifferent == end) break;
+				}
+
+				// if at least 2 subsequent values are equal, emit RLE packet
+				if (repetitionCount > 1) {
+
+					packetHeader = 0x80 + (repetitionCount - 1); // & 0x7F - cannot be more than 127
+
+					stream.write(&packetHeader, sizeof(packetHeader));
+
+					// emit repeated value
+					stream.write(current, sizeof(packetHeader));
+
+				} else {
+					// otherwise emit RAW packet
+
+					// find longest sequence of non-repeating values
+					while (true) {
+						repetitionCount = nextDifferent - current;
+						if (repetitionCount == 128) break;
+						if (*(nextDifferent + 1) == *nextDifferent) break; //< TODO: Compare all pixel bytes
+						nextDifferent++;
+					}
+
+					packetHeader = (repetitionCount - 1); // & 0x7F - cannot be more than 127
+
+					stream.write(&packetHeader, sizeof(packetHeader));
+
+					// emit RAW values
+					stream.write(current, sizeof(char) * repetitionCount);
+					
+				}
+
+				current = nextDifferent;
+			}
+
+			if (stream.fail()) {
+				return false;
+			}
+			return true;
+		}
+
 		TGAError SaveTga(std::ostream &stream, const TGAImage &image, TGAOptions options) {
 
 			if (image.hasError()) {
@@ -374,6 +433,11 @@ namespace gw {
 				return GWTGA_UNSUPPORTED_PIXEL_DEPTH;
 			}
 
+			// Parse options
+			bool useRLEcompression = ((options & GWTGA_COMPRESS_RLE) == GWTGA_COMPRESS_RLE);
+			bool flipVertically = ((options & GWTGA_FLIP_VERTICALLY) == GWTGA_FLIP_VERTICALLY);
+			bool flipHorizontally = ((options & GWTGA_FLIP_HORIZONTALLY) == GWTGA_FLIP_HORIZONTALLY);
+
 			// Write header
 			TGAHeader header;
 			header.iDLength = 0;
@@ -382,9 +446,17 @@ namespace gw {
 			switch (image.colorType) {
 			case GWTGA_RGB:
 				if (header.colorMapType == 1) {
-					header.ImageType = 1; //< Uncompressed color-mapped image
+					if (useRLEcompression) {
+						header.ImageType = 9; //< Runlength encoded color-mapped image
+					} else {
+						header.ImageType = 1; //< Uncompressed color-mapped image
+					}
 				} else {
-					header.ImageType = 2; //< Uncompressed RGB 
+					if (useRLEcompression) {
+						header.ImageType = 10; //< Runlength encoded RGB
+					} else {
+						header.ImageType = 2; //< Uncompressed RGB 
+					}
 				}
 				break;
 			case GWTGA_GREYSCALE:
@@ -392,7 +464,11 @@ namespace gw {
 					// TGA does not support greyscale color mapped images
 					return GWTGA_INVALID_DATA;
 				} else {
-					header.ImageType = 3; //< Uncompressed greyscale
+					if (useRLEcompression) {
+						header.ImageType = 11; //< Runlength encoded black and white image
+					} else {
+						header.ImageType = 3; //< Uncompressed greyscale
+					}
 				}
 				break;
 			default:
@@ -453,12 +529,20 @@ namespace gw {
 			unsigned char bytesPerPixel = image.bitsPerPixel / 8;
 
 			// Write pixel data
-			if ((options & GWTGA_OPTIONS_NONE) == options || !options) {
+			if (!flipVertically && !flipHorizontally) {
 				// NO PROCESSING
-				stream.write(image.bytes, image.width * image.height * bytesPerPixel);
 
-			} else if (options & GWTGA_FLIP_VERTICALLY) {
-				if (!(options & GWTGA_FLIP_HORIZONTALLY)) {
+				if (useRLEcompression) {
+					// TODO
+					if (!compressRLE(stream, image.bytes, image.width * image.height, bytesPerPixel)) {
+						return GWTGA_IO_ERROR;
+					}
+				} else {
+					stream.write(image.bytes, image.width * image.height * bytesPerPixel);
+				}
+
+			} else if (flipVertically) {
+				if (!flipHorizontally) {
 					// PROCESSING - Vertical Flip
 					int stride = image.width * bytesPerPixel;
 					processToStream<processPassThrough, fetchXPlusY>(stream, image.bytes, image.width, image.height, 0, 1, 1, (image.height - 1) * stride, -stride, -stride, stride);
@@ -470,7 +554,7 @@ namespace gw {
 					processToStream<processPassThrough, fetchXPlusY>(stream, image.bytes, image.width, image.height, (image.height - 1) * strideY, -strideY, -strideY, (image.width - 1) * strideX, -strideX, -strideX , strideX);
 
 				}
-			} else if (options & GWTGA_FLIP_HORIZONTALLY) {
+			} else if (flipHorizontally) {
 				// PROCESSING - Horizontal Flip
 				int strideX = bytesPerPixel;
 				int strideY = image.width * bytesPerPixel;
