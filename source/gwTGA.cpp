@@ -345,11 +345,38 @@ namespace gw {
 			return err;
 		}
 
+		bool cmpPixels(char* pa, char* pb, char bytesPerPixel) {
+			
+			uint32_t colorA;
+			uint32_t colorB;
+
+			// Read color index (TODO: make sure this works on little/big endian machines)
+			switch (bytesPerPixel) {
+			case 1:
+				colorA = *((uint8_t*) pa);
+				colorB = *((uint8_t*) pb);
+				break;
+			case 2:
+				colorA = *((uint16_t*) pa);
+				colorB = *((uint16_t*) pb);
+				break;
+			case 3:
+				colorA = *((uint32_t*) pa) & 0x00FFFFFF;
+				colorB = *((uint32_t*) pb) & 0x00FFFFFF;
+				break;
+			default:
+				// TODO: Error
+				break;
+			}
+
+			return colorA == colorB;
+		}
+
 		bool compressRLE(std::ostream &stream, char* source, size_t pixelsNumber, size_t bytesPerInputPixel) {
 
 			char* current = source;
-			char* nextDifferent = source + 1;
-			char* end = source + pixelsNumber;
+			char* nextDifferent = source + bytesPerInputPixel;
+			char* end = source + (pixelsNumber * bytesPerInputPixel);
 			char packetHeader = 0;
 
 			// find longest sequence of same values
@@ -357,10 +384,10 @@ namespace gw {
 
 				size_t repetitionCount = 1;
 
-				while (*current == *nextDifferent) { //< TODO: Compare all pixel bytes
+				while (cmpPixels(current, nextDifferent, bytesPerInputPixel)) { 
 					
-					nextDifferent++;
-					repetitionCount = nextDifferent - current;
+					nextDifferent+=bytesPerInputPixel;
+					repetitionCount = (nextDifferent - current) / bytesPerInputPixel;
 
 					if (repetitionCount == 128 || nextDifferent == end) break;
 				}
@@ -373,17 +400,17 @@ namespace gw {
 					stream.write(&packetHeader, sizeof(packetHeader));
 
 					// emit repeated value
-					stream.write(current, sizeof(packetHeader));
+					stream.write(current, sizeof(char) * bytesPerInputPixel);
 
 				} else {
 					// otherwise emit RAW packet
 
 					// find longest sequence of non-repeating values
 					while (true) {
-						repetitionCount = nextDifferent - current;
-						if (repetitionCount == 128) break;
-						if (*(nextDifferent + 1) == *nextDifferent) break; //< TODO: Compare all pixel bytes
-						nextDifferent++;
+						repetitionCount = (nextDifferent - current) / bytesPerInputPixel;
+						if (repetitionCount == 128 || nextDifferent == end) break;
+						if (cmpPixels(nextDifferent + bytesPerInputPixel, nextDifferent, bytesPerInputPixel)) break; 
+						nextDifferent += bytesPerInputPixel;
 					}
 
 					packetHeader = (repetitionCount - 1); // & 0x7F - cannot be more than 127
@@ -391,7 +418,7 @@ namespace gw {
 					stream.write(&packetHeader, sizeof(packetHeader));
 
 					// emit RAW values
-					stream.write(current, sizeof(char) * repetitionCount);
+					stream.write(current, sizeof(char) * repetitionCount * bytesPerInputPixel);
 					
 				}
 
@@ -622,7 +649,6 @@ namespace gw {
 					// PROCESSING - Horizontal Flip
 					flipFuncType = flipFuncHorizontal;
 					stride = 1;
-
 				} 
 			}
 

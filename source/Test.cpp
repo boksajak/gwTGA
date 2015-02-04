@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
 		std::cout << "Image saved successfully" << std::endl;
 	}
 
-	img = gw::tga::LoadTga("test_images\\guitar_rle.tga");
+	img = gw::tga::LoadTga("test_images\\mandrill_24.tga");
 
 	if (gw::tga::SaveTga("test_rle.tga", img, gw::tga::GWTGA_COMPRESS_RLE) != gw::tga::GWTGA_NONE) {
 		std::cout << "Error while saving TGA" << std::endl;
