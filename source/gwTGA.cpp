@@ -375,19 +375,19 @@ namespace gw {
 		bool compressRLE(std::ostream &stream, char* source, size_t pixelsNumber, size_t bytesPerInputPixel) {
 
 			char* current = source;
-			char* nextDifferent = source + bytesPerInputPixel;
+			char* nextDifferent = source ;
 			char* end = source + (pixelsNumber * bytesPerInputPixel);
 			char packetHeader = 0;
 
 			// find longest sequence of same values
 			while (nextDifferent < end) {
 
-				size_t repetitionCount = 1;
+				size_t repetitionCount = 0;
 
 				while (cmpPixels(current, nextDifferent, bytesPerInputPixel)) { 
 					
 					nextDifferent+=bytesPerInputPixel;
-					repetitionCount = (nextDifferent - current) / bytesPerInputPixel;
+					repetitionCount++;
 
 					if (repetitionCount == 128 || nextDifferent == end) break;
 				}
@@ -407,10 +407,10 @@ namespace gw {
 
 					// find longest sequence of non-repeating values
 					while (true) {
-						repetitionCount = (nextDifferent - current) / bytesPerInputPixel;
 						if (repetitionCount == 128 || nextDifferent == end) break;
 						if (cmpPixels(nextDifferent + bytesPerInputPixel, nextDifferent, bytesPerInputPixel)) break; 
 						nextDifferent += bytesPerInputPixel;
+						repetitionCount++;
 					}
 
 					packetHeader = (repetitionCount - 1); // & 0x7F - cannot be more than 127
@@ -424,6 +424,7 @@ namespace gw {
 
 				current = nextDifferent;
 			}
+			// TODO: If image is 1 pixel long, encode this one pixel somehow
 
 			if (stream.fail()) {
 				return false;
