@@ -71,16 +71,16 @@ namespace gw {
 
 		struct TGAImage {
 
-			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(GWTGA_UNDEFINED), error(GWTGA_NONE), colorType(GWTGA_UNKNOWN) {}
+			TGAImage() :bytes(NULL), width(0), height(0), bitsPerPixel(0), attributeBitsPerPixel(0), origin(GWTGA_UNDEFINED), xOrigin(0), yOrigin(0), error(GWTGA_NONE), colorType(GWTGA_UNKNOWN) {}
 
 			char*			bytes;
-			
+
 			unsigned int	width;
 			unsigned int	height;
 			unsigned char	bitsPerPixel;
 
 			unsigned char	attributeBitsPerPixel;
-			
+
 			TGAImageOrigin	origin;
 			unsigned int	xOrigin;
 			unsigned int	yOrigin;
@@ -199,7 +199,7 @@ namespace gw {
 			//  Pixel data reading 
 			// -------------------------------------------------------------------------------------
 			typedef size_t(*flipFunc)(size_t i, size_t width, size_t height, size_t bpp);
-			void getProcessingInfo(flipFunc &flipFuncType, size_t &stride, bool flipVertically, bool flipHorizontally, size_t width, size_t height);
+			void getFlipFunction(flipFunc &flipFuncType, size_t &stride, bool flipVertically, bool flipHorizontally, size_t width, size_t height);
 
 			typedef void(*fetchPixelFunc)(char* target, char* input, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel);
 			typedef bool(*fetchPixelsFunc)(char* target, std::istream &stream, size_t bytesPerInputPixel, char* colorMap, size_t bytesPerOutputPixel, size_t count);
@@ -221,19 +221,23 @@ namespace gw {
 			size_t flipFuncVertical(size_t i, size_t width, size_t height, size_t bpp);
 			size_t flipFuncHorizontal(size_t i, size_t width, size_t height, size_t bpp);
 			size_t flipFuncHorizontalAndVertical(size_t i, size_t width, size_t height, size_t bpp);
-			
+
 			typedef char*(*fetchFunc)(char* source, unsigned int x, unsigned int y, unsigned int imgWidth, unsigned int imgHeight);
 			typedef char*(*processFunc)(char* target, char* source);
 
 			template<processFunc process, fetchFunc fetch>
 			void processToStream(std::ostream &stream, char* source, unsigned int imgWidth, unsigned int imgHeight, int beginX, int strideX, int endX, int beginY, int strideY, int endY, size_t resultSize);
-			
+
 			template<processFunc process, fetchFunc fetch>
 			void processToArray(std::istream &stream, char* target, unsigned int imgWidth, unsigned int imgHeight, int beginX, int strideX, int endX, int beginY, int strideY, int endY, size_t resultSize);
 
 			char* fetchXPlusY(char* source, unsigned int x, unsigned int y, unsigned int imgWidth, unsigned int imgHeight);
 			char* processPassThrough(char* target, char* source);
 
+			bool cmpPixels(char* pa, char* pb, char bytesPerPixel);
+
+			bool compressRLE(std::ostream &stream, char* source, size_t imgWidth, size_t imgHeight, size_t bytesPerInputPixel);
+			bool compressRLE(std::ostream &stream, char* source, size_t imgWidth, size_t imgHeight, size_t bytesPerInputPixel, flipFunc flipFuncType);
 		}
 	} 
 }

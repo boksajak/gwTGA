@@ -207,64 +207,64 @@ namespace gw {
 			// Read pixel data
 			if (header.ImageType == 2 || header.ImageType == 3 || 
 				(header.ImageType == 1 && returnColorMap)) { // color mapped, but do not resolve palette is specified
-				
-				// 2 - Uncompressed, RGB images
-				// 3 - Uncompressed, black and white images.
 
-				if (!flipVertically && !flipHorizontally) {
-					// NO PROCESSING
-					stream.read(resultImage.bytes, imgDataSize);
+					// 2 - Uncompressed, RGB images
+					// 3 - Uncompressed, black and white images.
 
-				} else if (flipVertically) {
-					if (!flipHorizontally) {
-						// PROCESSING - Vertical Flip
-						int stride = resultImage.width * bytesPerPixel;
-						processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, 0, 1, 1, (resultImage.height - 1) * stride, -stride, -stride, stride);
+					if (!flipVertically && !flipHorizontally) {
+						// NO PROCESSING
+						stream.read(resultImage.bytes, imgDataSize);
 
-					} else {
-						// PROCESSING - Vertical and horizontal Flip
+					} else if (flipVertically) {
+						if (!flipHorizontally) {
+							// PROCESSING - Vertical Flip
+							int stride = resultImage.width * bytesPerPixel;
+							processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, 0, 1, 1, (resultImage.height - 1) * stride, -stride, -stride, stride);
+
+						} else {
+							// PROCESSING - Vertical and horizontal Flip
+							int strideX = bytesPerPixel;
+							int strideY = resultImage.width * bytesPerPixel;
+							processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, (resultImage.height - 1) * strideY, -strideY, -strideY, (resultImage.width - 1) * strideX, -strideX, -strideX , strideX);
+						}
+					} else if (flipHorizontally) {
+						// PROCESSING - Horizontal Flip
 						int strideX = bytesPerPixel;
 						int strideY = resultImage.width * bytesPerPixel;
-						processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, (resultImage.height - 1) * strideY, -strideY, -strideY, (resultImage.width - 1) * strideX, -strideX, -strideX , strideX);
+						processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, 0, strideY, (resultImage.height) * strideY, (resultImage.width - 1) * strideX, -strideX, -strideX , strideX);
+
+					} else {
+						// TODO
 					}
-				} else if (flipHorizontally) {
-					// PROCESSING - Horizontal Flip
-					int strideX = bytesPerPixel;
-					int strideY = resultImage.width * bytesPerPixel;
-					processToArray<processPassThrough, fetchXPlusY>(stream, resultImage.bytes, resultImage.width, resultImage.height, 0, strideY, (resultImage.height) * strideY, (resultImage.width - 1) * strideX, -strideX, -strideX , strideX);
 
-				} else {
-					// TODO
-				}
-
-				if (stream.fail()) {
-					resultImage.error = GWTGA_IO_ERROR;
-					return resultImage;
-				}
+					if (stream.fail()) {
+						resultImage.error = GWTGA_IO_ERROR;
+						return resultImage;
+					}
 
 			} else if (header.ImageType == 10 || header.ImageType == 11 ||
 				(header.ImageType == 9 && returnColorMap)) {  // color mapped, RLE compressed, but do not resolve palette is specified
 
-				// 10 - Runlength encoded RGB images
-				// 11 - Runlength encoded black and white images.
+					// 10 - Runlength encoded RGB images
+					// 11 - Runlength encoded black and white images.
 
-				bool perPixelProcessing;
-				size_t stride;
-				flipFunc flipFuncType;
+					bool perPixelProcessing;
+					size_t stride;
+					flipFunc flipFuncType;
 
-				getProcessingInfo(flipFuncType, stride, flipVertically, flipHorizontally, resultImage.width, resultImage.height);
+					getFlipFunction(flipFuncType, stride, flipVertically, flipHorizontally, resultImage.width, resultImage.height);
 
-				if (stride == resultImage.width * resultImage.height) {
-					perPixelProcessing = false;
-				} else {
-					perPixelProcessing = true;
-				}
+					if (stride == resultImage.width * resultImage.height) {
+						perPixelProcessing = false;
+					} else {
+						perPixelProcessing = true;
+					}
 
-				if (!decompressRLE<fetchPixelUncompressed, fetchPixelsUncompressed>(resultImage.bytes, pixelsNumber, bytesPerPixel, stream, NULL, bytesPerPixel, resultImage.width, resultImage.height, flipFuncType, perPixelProcessing)) {
-					// Error while reading compressed image data
-					resultImage.error = GWTGA_IO_ERROR;
-					return resultImage;
-				}
+					if (!decompressRLE<fetchPixelUncompressed, fetchPixelsUncompressed>(resultImage.bytes, pixelsNumber, bytesPerPixel, stream, NULL, bytesPerPixel, resultImage.width, resultImage.height, flipFuncType, perPixelProcessing)) {
+						// Error while reading compressed image data
+						resultImage.error = GWTGA_IO_ERROR;
+						return resultImage;
+					}
 
 			}  else if (header.ImageType == 1 || header.ImageType == 9 ) {
 
@@ -289,7 +289,7 @@ namespace gw {
 					size_t stride;
 					flipFunc flipFuncType;
 
-					getProcessingInfo(flipFuncType, stride, flipVertically, flipHorizontally, resultImage.width, resultImage.height);
+					getFlipFunction(flipFuncType, stride, flipVertically, flipHorizontally, resultImage.width, resultImage.height);
 
 					for (size_t i = 0; i < resultImage.width * resultImage.height; i += stride) {
 						fetchPixelsColorMap(&resultImage.bytes[flipFuncType(i, resultImage.width, resultImage.height, bytesPerPixel)], stream, header.imageSpec.bitsPerPixel / 8, colorMap, bytesPerPixel, stride);
@@ -301,7 +301,7 @@ namespace gw {
 					size_t stride;
 					flipFunc flipFuncType;
 
-					getProcessingInfo(flipFuncType, stride, flipVertically, flipHorizontally, resultImage.width, resultImage.height);
+					getFlipFunction(flipFuncType, stride, flipVertically, flipHorizontally, resultImage.width, resultImage.height);
 
 					if (stride == resultImage.width * resultImage.height) {
 						perPixelProcessing = false;
@@ -343,93 +343,6 @@ namespace gw {
 			fileStream.close();
 
 			return err;
-		}
-
-		bool cmpPixels(char* pa, char* pb, char bytesPerPixel) {
-			
-			uint32_t colorA;
-			uint32_t colorB;
-
-			// Read color index (TODO: make sure this works on little/big endian machines)
-			switch (bytesPerPixel) {
-			case 1:
-				colorA = *((uint8_t*) pa);
-				colorB = *((uint8_t*) pb);
-				break;
-			case 2:
-				colorA = *((uint16_t*) pa);
-				colorB = *((uint16_t*) pb);
-				break;
-			case 3:
-				colorA = *((uint32_t*) pa) & 0x00FFFFFF;
-				colorB = *((uint32_t*) pb) & 0x00FFFFFF;
-				break;
-			default:
-				// TODO: Error
-				break;
-			}
-
-			return colorA == colorB;
-		}
-
-		bool compressRLE(std::ostream &stream, char* source, size_t pixelsNumber, size_t bytesPerInputPixel) {
-
-			char* current = source;
-			char* nextDifferent = source ;
-			char* end = source + (pixelsNumber * bytesPerInputPixel);
-			char packetHeader = 0;
-
-			// find longest sequence of same values
-			while (nextDifferent < end) {
-
-				size_t repetitionCount = 0;
-
-				while (cmpPixels(current, nextDifferent, bytesPerInputPixel)) { 
-					
-					nextDifferent+=bytesPerInputPixel;
-					repetitionCount++;
-
-					if (repetitionCount == 128 || nextDifferent == end) break;
-				}
-
-				// if at least 2 subsequent values are equal, emit RLE packet
-				if (repetitionCount > 1) {
-
-					packetHeader = 0x80 + (repetitionCount - 1); // & 0x7F - cannot be more than 127
-
-					stream.write(&packetHeader, sizeof(packetHeader));
-
-					// emit repeated value
-					stream.write(current, sizeof(char) * bytesPerInputPixel);
-
-				} else {
-					// otherwise emit RAW packet
-
-					// find longest sequence of non-repeating values
-					while (true) {
-						if (repetitionCount == 128 || nextDifferent == end) break;
-						if (cmpPixels(nextDifferent + bytesPerInputPixel, nextDifferent, bytesPerInputPixel)) break; 
-						nextDifferent += bytesPerInputPixel;
-						repetitionCount++;
-					}
-
-					packetHeader = (repetitionCount - 1); // & 0x7F - cannot be more than 127
-
-					stream.write(&packetHeader, sizeof(packetHeader));
-
-					// emit RAW values
-					stream.write(current, sizeof(char) * repetitionCount * bytesPerInputPixel);
-					
-				}
-
-				current = nextDifferent;
-			}
-			// TODO: If image is 1 pixel long, encode this one pixel somehow
-
-			if (stream.fail()) {
-				return false;
-			}
-			return true;
 		}
 
 		TGAError SaveTga(std::ostream &stream, const TGAImage &image, TGAOptions options) {
@@ -553,22 +466,29 @@ namespace gw {
 			if (image.hasColorMap()) {
 				stream.write(image.colorMap.bytes, image.colorMap.length * (image.colorMap.bitsPerPixel / 8));
 			}
-			
+
 			unsigned char bytesPerPixel = image.bitsPerPixel / 8;
 
 			// Write pixel data
 			if (!flipVertically && !flipHorizontally) {
-				// NO PROCESSING
 
 				if (useRLEcompression) {
-					// TODO
-					if (!compressRLE(stream, image.bytes, image.width * image.height, bytesPerPixel)) {
+					if (!compressRLE(stream, image.bytes, image.width, image.height, bytesPerPixel)) {
 						return GWTGA_IO_ERROR;
 					}
 				} else {
+					// NO PROCESSING
 					stream.write(image.bytes, image.width * image.height * bytesPerPixel);
 				}
+			} else if (useRLEcompression) {
+				size_t stride;
+				flipFunc flipFuncType;
 
+				getFlipFunction(flipFuncType, stride, flipVertically, flipHorizontally, image.width, image.height);
+
+				if (!compressRLE(stream, image.bytes, image.width, image.height, bytesPerPixel, flipFuncType)) {
+					return GWTGA_IO_ERROR;
+				}
 			} else if (flipVertically) {
 				if (!flipHorizontally) {
 					// PROCESSING - Vertical Flip
@@ -628,7 +548,7 @@ namespace gw {
 				}
 			}
 
-			void getProcessingInfo(flipFunc &flipFuncType, size_t &stride, bool flipVertically, bool flipHorizontally, size_t width, size_t height) {
+			void getFlipFunction(flipFunc &flipFuncType, size_t &stride, bool flipVertically, bool flipHorizontally, size_t width, size_t height) {
 
 				if (!flipVertically && !flipHorizontally) {
 					// NO PROCESSING
@@ -843,6 +763,160 @@ namespace gw {
 				} while (x != endX);
 			}
 
+
+			bool cmpPixels(char* pa, char* pb, char bytesPerPixel) {
+
+				uint32_t colorA;
+				uint32_t colorB;
+
+				// Read color index (TODO: make sure this works on little/big endian machines)
+				switch (bytesPerPixel) {
+				case 1:
+					colorA = *((uint8_t*) pa);
+					colorB = *((uint8_t*) pb);
+					break;
+				case 2:
+					colorA = *((uint16_t*) pa);
+					colorB = *((uint16_t*) pb);
+					break;
+				case 3:
+					// TODO: Segfault - accesses behind array boundary
+					colorA = *pa + (*(pa+1) << 8) + (*(pa+2) << 16);
+					colorB = *pb + (*(pb+1) << 8) + (*(pb+2) << 16);
+					break;
+				default:
+					// TODO: Error
+					break;
+				}
+
+				return colorA == colorB;
+			}
+
+			bool compressRLE(std::ostream &stream, char* source, size_t imgWidth, size_t imgHeight, size_t bytesPerInputPixel, flipFunc flipFuncType) {
+
+				size_t current = 0;
+				size_t nextDifferent = 0;
+				size_t pixelCount = imgWidth * imgHeight;
+				char packetHeader = 0;
+
+				// find longest sequence of same values
+				while (nextDifferent < pixelCount) {
+
+					size_t repetitionCount = 0;
+
+					while (cmpPixels(&source[flipFuncType(current, imgWidth, imgHeight, bytesPerInputPixel)], 
+						&source[flipFuncType(nextDifferent, imgWidth, imgHeight, bytesPerInputPixel)], bytesPerInputPixel)) { 
+
+							nextDifferent++;
+							repetitionCount++;
+
+							if (repetitionCount == 128 || nextDifferent == pixelCount) break; // TODO: Do we need to split packets on row end?
+					}
+
+					// if at least 2 subsequent values are equal, emit RLE packet
+					if (repetitionCount > 1) {
+
+						packetHeader = 0x80 + (repetitionCount - 1); // & 0x7F - cannot be more than 127
+
+						stream.write(&packetHeader, sizeof(packetHeader));
+
+						// emit repeated value
+						stream.write(&source[flipFuncType(current, imgWidth, imgHeight, bytesPerInputPixel)], sizeof(char) * bytesPerInputPixel);
+
+					} else {
+						// otherwise emit RAW packet
+
+						// find longest sequence of non-repeating values
+						while (true) {
+							if (repetitionCount == 128 || nextDifferent + 1 >= pixelCount) break; // TODO: Do we need to split packets on row end?
+							if (cmpPixels(&source[flipFuncType(nextDifferent, imgWidth, imgHeight, bytesPerInputPixel)], 
+								&source[flipFuncType(nextDifferent + 1, imgWidth, imgHeight, bytesPerInputPixel)], bytesPerInputPixel)) break; 
+
+							nextDifferent++;
+							repetitionCount++;
+						}
+
+						packetHeader = (repetitionCount - 1); // & 0x7F - cannot be more than 127
+
+						stream.write(&packetHeader, sizeof(packetHeader));
+
+						// emit RAW values
+						for (size_t i = 0; i < repetitionCount; i++) {
+							stream.write(&source[flipFuncType(current + i, imgWidth, imgHeight, bytesPerInputPixel)], sizeof(char) * bytesPerInputPixel);
+						}
+
+					}
+
+					current = nextDifferent;
+				}
+				// TODO: If image is 1 pixel long, encode this one pixel somehow
+
+				if (stream.fail()) {
+					return false;
+				}
+				return true;
+			}
+
+			// Faster version without flipping
+			bool compressRLE(std::ostream &stream, char* source, size_t imgWidth, size_t imgHeight, size_t bytesPerInputPixel) {
+
+				size_t current = 0;
+				size_t nextDifferent = 0;
+				size_t pixelCount = imgWidth * imgHeight * bytesPerInputPixel;
+				char packetHeader = 0;
+
+				// find longest sequence of same values
+				while (nextDifferent < pixelCount) {
+
+					size_t repetitionCount = 0;
+
+					while (cmpPixels(&source[current], &source[nextDifferent], bytesPerInputPixel)) { 
+
+						nextDifferent+=bytesPerInputPixel;
+						repetitionCount++;
+
+						if (repetitionCount == 128 || nextDifferent == pixelCount) break; // TODO: Do we need to split packets on row end?
+					}
+
+					// if at least 2 subsequent values are equal, emit RLE packet
+					if (repetitionCount > 1) {
+
+						packetHeader = 0x80 + (repetitionCount - 1); // & 0x7F - cannot be more than 127
+
+						stream.write(&packetHeader, sizeof(packetHeader));
+
+						// emit repeated value
+						stream.write(&source[current], sizeof(char) * bytesPerInputPixel);
+
+					} else {
+						// otherwise emit RAW packet
+
+						// find longest sequence of non-repeating values
+						while (true) {
+							if (repetitionCount == 128 || nextDifferent+bytesPerInputPixel >= pixelCount) break; // TODO: Do we need to split packets on row end?
+							if (cmpPixels(&source[nextDifferent], &source[nextDifferent + bytesPerInputPixel], bytesPerInputPixel)) break; 
+
+							nextDifferent+=bytesPerInputPixel;
+							repetitionCount++;
+						}
+
+						packetHeader = (repetitionCount - 1); // & 0x7F - cannot be more than 127
+
+						stream.write(&packetHeader, sizeof(packetHeader));
+
+						// emit RAW values
+						stream.write(&source[current], sizeof(char) * repetitionCount * bytesPerInputPixel);
+					}
+
+					current = nextDifferent;
+				}
+				// TODO: If image is 1 pixel long, encode this one pixel somehow
+
+				if (stream.fail()) {
+					return false;
+				}
+				return true;
+			}
 		}
 	} 
 }
