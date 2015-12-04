@@ -25,11 +25,16 @@ if(MSVC)
 endif(MSVC) 
                  
 # Install shared, static library and CLI utility
-install(TARGETS gwTGA gwTGALib
+install(TARGETS gwTGA
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib/static)
+        ARCHIVE DESTINATION lib)
 
+install(TARGETS gwTGALib
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib/static
+        ARCHIVE DESTINATION lib/static)
+        
 # Install header file
 install(FILES gwTGA.h DESTINATION include)
 
