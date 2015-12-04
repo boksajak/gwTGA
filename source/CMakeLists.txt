@@ -3,26 +3,33 @@ project (gwTGA)
 
 include(../cmake/macros.cmake)
 
-set_property(GLOBAL PROPERTY USE_FOLDERS On)
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-MACRO(SUBDIRLIST result curdir)
-  FILE(GLOB children RELATIVE ${curdir} ${curdir}/*)
-  SET(dirlist "")
-  FOREACH(child ${children})
-    IF(IS_DIRECTORY ${curdir}/${child})
-        SET(dirlist ${dirlist} ${child})
-    ENDIF()
-  ENDFOREACH()
-  SET(${result} ${dirlist})
-ENDMACRO()
+# Create gwTGA library "object" and static and shared library built from this object
+add_library (gwTGAObject OBJECT gwTGA.cpp gwTGA.h)
 
-file(GLOB_RECURSE INCS "*.h")
-file(GLOB_RECURSE CPPS "*.cpp")
+add_library (gwTGALib STATIC $<TARGET_OBJECTS:gwTGAObject>)
+add_library (gwTGA    SHARED $<TARGET_OBJECTS:gwTGAObject>)
 
-add_executable(gwTGATest ${CPPS} ${INCS})
+# Create testing utility executable
+add_executable(gwTGATest Test.cpp gwTGA.h)
 
+# Link core library to utility application
+target_link_libraries (gwTGATest gwTGALib)
+
+# Create symbolic links to test images folder
 set(COPY_TARGET_DIR $<TARGET_FILE_DIR:gwTGATest>)
 post_build_make_dir_link(gwTGATest ${PROJECT_SOURCE_DIR}/../test_images  ${COPY_TARGET_DIR}/test_images) 
 if(MSVC) 
 	post_build_make_dir_link(gwTGATest ${PROJECT_SOURCE_DIR}/../test_images  ${PROJECT_BINARY_DIR}/test_images) 
 endif(MSVC) 
+                 
+# Install shared, static library and CLI utility
+install(TARGETS gwTGA gwTGALib
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib/static)
+
+# Install header file
+install(FILES gwTGA.h DESTINATION include)
+
